@@ -1,9 +1,7 @@
 [build]
-  base = "BUT_FRONT"
-  publish = "BUT_FRONT"
+  publish = "."
 
 [functions]
-  directory = "BUT_FRONT/netlify/functions"
+  directory = "netlify/functions"
   node_bundler = "esbuild"
-
-
+g
