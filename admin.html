@@ -1,4 +1,3 @@
-<!-- /admin.html -->
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -8,192 +7,55 @@
 
   <link rel="icon" href="/assets/img/favicon.png" />
   <link rel="shortcut icon" href="/assets/img/favicon.png" />
-
   <link rel="stylesheet" href="/assets/css/style.css" />
 
   <style>
-    /* admin 전용 슬림 스타일 (기존 style.css 위에 얹기) */
     :root{
       --card-bg: rgba(255,255,255,0.06);
       --card-bd: rgba(255,255,255,0.10);
       --muted: rgba(255,255,255,0.65);
       --text: rgba(255,255,255,0.92);
-      --ok: #25d366;
-      --err: #ff5c5c;
-      --info: #48a7ff;
     }
-    body{ color: var(--text); }
-    main{ padding: 14px 14px 40px; max-width: 980px; margin: 0 auto; }
-
-    .top-title{
-      font-size: 18px;
-      letter-spacing: 0.2px;
-      margin: 10px 0 12px;
-    }
-    .sub{
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 1.5;
-      margin-bottom: 14px;
-    }
-
-    .grid{
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 12px;
-    }
-    @media (min-width: 900px){
-      .grid{ grid-template-columns: 1fr 1fr; }
-    }
-
-    .card{
-      background: var(--card-bg);
-      border: 1px solid var(--card-bd);
-      border-radius: 16px;
-      padding: 14px;
-      backdrop-filter: blur(6px);
-    }
-    .card h3{
-      font-size: 15px;
-      margin: 0 0 10px;
-      color: rgba(255,255,255,0.95);
-    }
-
-    .row{
-      display:flex;
-      gap: 10px;
-      align-items:center;
-      justify-content: space-between;
-      flex-wrap: wrap;
-    }
-
-    .pill{
-      display:inline-flex;
-      align-items:center;
-      gap: 8px;
-      padding: 6px 10px;
-      border-radius: 999px;
-      border: 1px solid var(--card-bd);
-      background: rgba(0,0,0,0.18);
-      font-size: 12px;
-      color: rgba(255,255,255,0.85);
-    }
-
+    main{ padding: 14px 14px 40px; max-width: 980px; margin: 0 auto; color: var(--text); }
+    .top-title{ font-size: 18px; margin: 10px 0 10px; }
+    .sub{ color: var(--muted); font-size: 13px; line-height: 1.5; margin-bottom: 12px; }
+    .grid{ display:grid; grid-template-columns: 1fr; gap: 12px; }
+    @media (min-width: 900px){ .grid{ grid-template-columns: 1fr 1fr; } }
+    .card{ background: var(--card-bg); border: 1px solid var(--card-bd); border-radius: 16px; padding: 14px; }
+    .row{ display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap; }
     .btn{
-      appearance:none;
-      border: 0;
-      border-radius: 12px;
-      padding: 10px 12px;
-      font-size: 14px;
-      cursor: pointer;
-      background: #ffffff;        /* 요청: 버튼 흰색 */
-      color: #000000;
-      min-height: 40px;
-      box-shadow: 0 6px 14px rgba(0,0,0,0.25);
+      appearance:none; border:0; border-radius: 12px; padding: 10px 12px;
+      font-size:14px; cursor:pointer; background:#ffffff; color:#000;
+      min-height:40px; box-shadow:0 6px 14px rgba(0,0,0,0.25);
     }
-    .btn:active{ transform: translateY(1px); }
-    .btn.secondary{
-      background: rgba(255,255,255,0.85);
-    }
-    .btn.small{
-      padding: 8px 10px;
-      font-size: 13px;
-      border-radius: 10px;
-      min-height: 36px;
-    }
-
-    .input{
-      width: 100%;
-      box-sizing: border-box;
-      border: 1px solid var(--card-bd);
-      background: rgba(0,0,0,0.25);
-      color: rgba(255,255,255,0.92);
-      padding: 10px 12px;
-      border-radius: 12px;
-      outline: none;
-      font-size: 14px;
-    }
-    .input::placeholder{ color: rgba(255,255,255,0.45); }
-    .field{
-      display:flex;
-      flex-direction: column;
-      gap: 6px;
-      margin-top: 10px;
-    }
-    .label{
-      font-size: 12px;
-      color: var(--muted);
-    }
-
-    /* 메시지 박스: 모바일 overflow 방지 */
+    .btn.small{ padding:8px 10px; font-size:13px; border-radius:10px; min-height:36px; }
+    .btn.secondary{ background: rgba(255,255,255,0.85); }
     .msg{
-      margin-top: 10px;
-      border: 1px solid var(--card-bd);
-      border-radius: 12px;
-      padding: 10px 12px;
-      font-size: 13px;
-      line-height: 1.45;
+      margin-top:10px; border: 1px solid var(--card-bd); border-radius: 12px;
+      padding: 10px 12px; font-size: 13px; line-height: 1.45;
       background: rgba(0,0,0,0.25);
-
-      word-break: break-word;
-      overflow-wrap: anywhere;
-      max-height: 140px;
-      overflow: auto;
-      white-space: pre-wrap;
+      word-break: break-word; overflow-wrap:anywhere; max-height: 140px; overflow:auto; white-space:pre-wrap;
     }
     .msg.ok{ border-color: rgba(37,211,102,0.35); }
     .msg.err{ border-color: rgba(255,92,92,0.35); }
     .msg.info{ border-color: rgba(72,167,255,0.35); }
-
-    .list{
-      display:flex;
-      flex-direction: column;
-      gap: 10px;
-      margin-top: 12px;
-    }
-    .item{
-      border: 1px solid var(--card-bd);
-      background: rgba(0,0,0,0.18);
-      border-radius: 14px;
-      padding: 12px;
-    }
+    .list{ display:flex; flex-direction:column; gap:10px; margin-top: 12px; }
+    .item{ border:1px solid var(--card-bd); background: rgba(0,0,0,0.18); border-radius: 14px; padding: 12px; }
     .muted{ color: var(--muted); font-size: 12px; }
-    .addr{
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-      font-size: 12.5px;
-      margin-top: 6px;
-      word-break: break-word;
-      overflow-wrap: anywhere;
-    }
-    .kv{
-      margin-top: 6px;
-      display:grid;
-      grid-template-columns: 92px 1fr;
-      gap: 6px 10px;
-      align-items: start;
-      font-size: 12.5px;
-    }
+    .addr{ font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12.5px; margin-top:6px; word-break:break-word; overflow-wrap:anywhere; }
+    .kv{ margin-top: 6px; display:grid; grid-template-columns: 92px 1fr; gap:6px 10px; font-size: 12.5px; }
     .kv .k{ color: var(--muted); }
-    .kv .v{
-      word-break: break-word;
-      overflow-wrap: anywhere;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    .kv .v{ word-break:break-word; overflow-wrap:anywhere; font-family: ui-monospace, Menlo, Consolas, monospace; }
+    .empty{ color: var(--muted); font-size: 13px; padding: 12px; border: 1px dashed rgba(255,255,255,0.18); border-radius: 14px; text-align:center; }
+    .input{
+      width:100%; box-sizing:border-box; border:1px solid var(--card-bd);
+      background: rgba(0,0,0,0.25); color: rgba(255,255,255,0.92);
+      padding: 10px 12px; border-radius: 12px; outline:none; font-size:14px;
     }
-
-    .empty{
-      color: var(--muted);
-      font-size: 13px;
-      padding: 12px;
-      border: 1px dashed rgba(255,255,255,0.18);
-      border-radius: 14px;
-      text-align: center;
-    }
-
-    .hr{
-      height: 1px;
-      background: rgba(255,255,255,0.10);
-      margin: 12px 0;
-    }
+    .input::placeholder{ color: rgba(255,255,255,0.45); }
+    .field{ display:flex; flex-direction:column; gap:6px; margin-top: 10px; }
+    .label{ font-size:12px; color: var(--muted); }
+    .hr{ height:1px; background: rgba(255,255,255,0.10); margin: 12px 0; }
   </style>
 </head>
 
@@ -203,66 +65,61 @@
   <main>
     <div class="top-title">관리자/스태프 모드</div>
     <div class="sub">
-      pending 자동 목록은 Netlify Functions + Netlify Blobs 기반입니다.<br/>
-      먼저 sync로 최신 요청을 반영하고, list로 화면에 표시합니다.
+      pending 자동 목록은 Netlify Functions + Netlify Blobs 캐시 기반입니다.<br/>
+      sync는 최근 블록 이벤트를 읽어 pending을 갱신합니다.
     </div>
 
     <div class="grid">
-      <!-- 왼쪽: pending 자동 목록 -->
       <section class="card">
         <div class="row">
-          <h3 style="margin:0;">pending 자동 목록</h3>
-          <button class="btn small" id="btn-sync" type="button">sync</button>
+          <div style="font-size:15px;">pending 자동 목록</div>
+          <div class="row" style="justify-content:flex-end;">
+            <button class="btn small" id="btn-sync" type="button">sync</button>
+            <button class="btn small secondary" id="btn-refresh" type="button">refresh</button>
+          </div>
         </div>
 
-        <div class="muted" style="margin-top:6px;">
-          목록 URL: /.netlify/functions/a2e_pending?action=list
-        </div>
-
-        <div id="msg" class="msg info" style="margin-top:10px;">대기중…</div>
+        <div id="msg" class="msg info">대기중…</div>
 
         <div class="hr"></div>
 
         <div id="pending-list" class="list">
-          <div class="empty">pending 로딩중…</div>
+          <div class="empty">로딩중…</div>
         </div>
       </section>
 
-      <!-- 오른쪽: 승인(온체인) -->
       <section class="card">
-        <h3>승인(온체인 처리)</h3>
-
-        <div class="muted">
-          아래 승인 버튼은 지갑 연결 후 실행됩니다.<br/>
-          실제 컨트랙트의 승인 함수(예: resolveClaim/approveClaim 등) ABI에 맞춰 admin.js에서 호출됩니다.
+        <div style="font-size:15px;">승인(온체인)</div>
+        <div class="muted" style="margin-top:6px;">
+          왼쪽 목록에서 항목을 선택하면 자동으로 입력칸이 채워집니다.
         </div>
 
         <div class="field">
-          <div class="label">신청자 주소</div>
-          <input class="input" id="inUser" placeholder="0x..." />
+          <div class="label">id (user slot id)</div>
+          <input class="input" id="inId" placeholder="예: 12" inputmode="numeric"/>
         </div>
 
         <div class="field">
-          <div class="label">미션 ID</div>
-          <input class="input" id="inMission" placeholder="예: 2" inputmode="numeric" />
+          <div class="label">missionId</div>
+          <input class="input" id="inMission" placeholder="예: 2" inputmode="numeric"/>
         </div>
 
         <div class="field">
-          <div class="label">proof (선택, 필요 시)</div>
-          <input class="input" id="inProof" placeholder="0x... (없으면 비워도 됨)" />
+          <div class="label">proof (선택)</div>
+          <input class="input" id="inProof" placeholder="0x..."/>
         </div>
 
         <div class="row" style="margin-top:12px;">
-          <button class="btn" id="btnFillFromSelected" type="button">선택항목 채우기</button>
-          <button class="btn secondary" id="btnApprove" type="button">승인 실행</button>
+          <button class="btn secondary" id="btn-approve" type="button">승인 실행</button>
+          <button class="btn secondary" id="btn-reject" type="button">거절(삭제)</button>
         </div>
 
-        <div id="msg2" class="msg info" style="margin-top:10px;">지갑 연결 후 승인 가능</div>
+        <div id="msg2" class="msg info">지갑 연결 후 승인 가능</div>
 
         <div class="hr"></div>
 
         <div class="muted">
-          참고: pending 카드의 “승인(온체인)” 버튼을 눌러도 위 입력칸으로 자동 채워집니다.
+          승인 성공 시 pending 항목은 자동 삭제됩니다(Blobs del).
         </div>
       </section>
     </div>
@@ -270,99 +127,10 @@
 
   <div id="include-footer"></div>
 
-  <!-- ethers v5 UMD 고정 -->
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
-
-  <!-- include / wallet -->
   <script src="/assets/js/include.js"></script>
   <script src="/assets/js/wallet.js"></script>
 
-  <!-- pending 자동 목록 렌더 -->
-  <script src="/assets/js/admin_pending_list.js"></script>
-
-  <!-- 승인(온체인) 로직: 여기에서 ABI 맞춰 연결 -->
-  <script>
-    // admin_pending_list.js와 연동을 위해 "선택된 항목" 저장
-    window.__selectedPending = null;
-
-    // admin_pending_list.js가 list 렌더 시, 아래 함수를 호출하도록 만들어두면 더 깔끔합니다.
-    window.setSelectedPending = function (obj) {
-      window.__selectedPending = obj || null;
-      const m = document.getElementById("msg2");
-      if (m) {
-        m.textContent = obj ? "선택됨: " + obj.user + " / mission " + obj.missionId : "선택 없음";
-        m.className = "msg info";
-      }
-    };
-
-    function setMsg2(text, type) {
-      const box = document.getElementById("msg2");
-      if (!box) return;
-      box.textContent = text || "";
-      box.className = "msg " + (type || "info");
-    }
-
-    // 선택항목 → 입력칸 채우기
-    document.getElementById("btnFillFromSelected")?.addEventListener("click", () => {
-      const s = window.__selectedPending;
-      if (!s) return setMsg2("선택된 pending이 없습니다. 왼쪽 목록에서 먼저 선택하세요.", "err");
-
-      document.getElementById("inUser").value = s.user || "";
-      document.getElementById("inMission").value = String(s.missionId ?? "");
-      document.getElementById("inProof").value = s.proof || "";
-      setMsg2("입력칸에 채웠습니다.", "ok");
-    });
-
-    // 승인 실행 (실제 함수/ABI는 당신 컨트랙트에 맞춰 여기만 수정)
-    document.getElementById("btnApprove")?.addEventListener("click", async () => {
-      try {
-        if (!window.ethereum) return setMsg2("지갑이 없습니다. 메타마스크/래비 지갑을 설치하세요.", "err");
-        if (!window.provider || !window.signer) {
-          return setMsg2("지갑연결이 필요합니다. 상단 지갑연결 버튼을 눌러주세요.", "err");
-        }
-
-        const user = (document.getElementById("inUser").value || "").trim();
-        const missionId = Number((document.getElementById("inMission").value || "").trim());
-        const proof = (document.getElementById("inProof").value || "").trim();
-
-        if (!ethers.utils.isAddress(user)) return setMsg2("신청자 주소가 올바르지 않습니다.", "err");
-        if (!Number.isFinite(missionId) || missionId < 0) return setMsg2("미션 ID가 올바르지 않습니다.", "err");
-
-        setMsg2("승인 트랜잭션 준비중…", "info");
-
-        // 여기를 반드시 당신 a2e_slim ABI에 맞춰 수정해야 합니다.
-        // 예시1) resolveClaim(address user, uint256 missionId)
-        // 예시2) approveClaim(uint256 uid, uint256 missionId, bytes32 proof)
-        //
-        // 지금은 안전하게 “호출 위치만” 만들어두고, 함수명/파라미터는 다음 단계에서 맞춥니다.
-        const A2E_ADDR = "0x29C82645A2299F460BB07A76ba0aF32349bEcB3c";
-
-        // TODO: 아래 ABI/함수명은 임시입니다. 실제 컨트랙트에 맞춰 변경하세요.
-        const ABI = [
-          "function resolveClaim(address user,uint256 missionId) external"
-        ];
-
-        const c = new ethers.Contract(A2E_ADDR, ABI, window.signer);
-
-        const tx = await c.resolveClaim(user, missionId);
-        setMsg2("전송됨: " + tx.hash, "ok");
-
-        const rcpt = await tx.wait();
-        setMsg2("완료: " + rcpt.transactionHash, "ok");
-
-        // 승인 후: 목록 갱신은 sync/list로 처리(원하면 clear 로직도 추가 가능)
-      } catch (e) {
-        const msg = e?.error?.message || e?.data?.message || e?.message || String(e);
-        setMsg2(msg, "err");
-      }
-    });
-  </script>
-
-  <!-- pending 리스트 카드 클릭 시 선택 처리: admin_pending_list.js에서 이 함수를 호출해도 됨 -->
-  <script>
-    // admin_pending_list.js가 아직 "선택" 처리를 안 해놨다면,
-    // 여기서 이벤트 위임으로 카드 클릭 시 내용을 파싱해 선택 처리하는 방식도 가능.
-    // (현재는 admin_pending_list.js에서 버튼 클릭 이벤트로 setSelectedPending() 호출하는 방식이 가장 깔끔)
-  </script>
+  <script src="/assets/js/admin.js"></script>
 </body>
 </html>
