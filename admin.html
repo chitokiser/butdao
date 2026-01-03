@@ -1,433 +1,368 @@
+<!-- /admin.html -->
 <!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>GeoHunt 관리자 페이지</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PAWDAO · 관리자</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <!-- Leaflet -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <link rel="icon" href="/assets/img/favicon.png" />
+  <link rel="shortcut icon" href="/assets/img/favicon.png" />
 
-  <!-- Geocoder -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
-  <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+  <link rel="stylesheet" href="/assets/css/style.css" />
 
   <style>
-    :root{ --side-w: 420px; }
-    *{ box-sizing: border-box; }
-    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:0;color:#111827;background:#fff}
-
-    header{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid #e5e7eb}
-    header h2{margin:0;font-size:18px}
-
-    .layout{display:grid;grid-template-columns: 1fr var(--side-w); height: calc(100vh - 56px);}
-    #map{height:100%; width:100%}
-
-    .side{border-left:1px solid #e5e7eb; padding:14px; overflow:auto; height:100%}
-    .muted{color:#6b7280;font-size:12px}
-    .card{border:1px solid #e5e7eb;border-radius:12px;padding:12px;margin-top:14px}
-    .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-    @media (max-width:900px){
-      .layout{grid-template-columns:1fr}
-      .side{border-left:none;border-top:1px solid #e5e7eb}
-      :root{ --side-w: 100% }
-      .row{grid-template-columns:1fr}
+    /* admin 전용 슬림 스타일 (기존 style.css 위에 얹기) */
+    :root{
+      --card-bg: rgba(255,255,255,0.06);
+      --card-bd: rgba(255,255,255,0.10);
+      --muted: rgba(255,255,255,0.65);
+      --text: rgba(255,255,255,0.92);
+      --ok: #25d366;
+      --err: #ff5c5c;
+      --info: #48a7ff;
     }
-    label{font-size:12px;color:#555}
-    input,button,textarea,select{width:100%;padding:10px;border:1px solid #ddd;border-radius:10px;margin:6px 0}
-    textarea{min-height:92px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}
-    button{cursor:pointer;background:#111827;color:#fff;font-weight:700}
-    .hint{font-size:12px;color:#6b7280;margin-top:-4px;white-space:pre-line}
-    .subtle{background:#f8fafc;border:1px dashed #e5e7eb;border-radius:10px;padding:10px}
-    .examples{display:grid;gap:6px;margin-top:6px}
-    .examples code{display:block;background:#0b1020;color:#d1e7ff;padding:8px;border-radius:8px;overflow:auto}
+    body{ color: var(--text); }
+    main{ padding: 14px 14px 40px; max-width: 980px; margin: 0 auto; }
+
+    .top-title{
+      font-size: 18px;
+      letter-spacing: 0.2px;
+      margin: 10px 0 12px;
+    }
+    .sub{
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+      margin-bottom: 14px;
+    }
+
+    .grid{
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+    @media (min-width: 900px){
+      .grid{ grid-template-columns: 1fr 1fr; }
+    }
+
+    .card{
+      background: var(--card-bg);
+      border: 1px solid var(--card-bd);
+      border-radius: 16px;
+      padding: 14px;
+      backdrop-filter: blur(6px);
+    }
+    .card h3{
+      font-size: 15px;
+      margin: 0 0 10px;
+      color: rgba(255,255,255,0.95);
+    }
+
+    .row{
+      display:flex;
+      gap: 10px;
+      align-items:center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+    }
+
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--card-bd);
+      background: rgba(0,0,0,0.18);
+      font-size: 12px;
+      color: rgba(255,255,255,0.85);
+    }
+
+    .btn{
+      appearance:none;
+      border: 0;
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-size: 14px;
+      cursor: pointer;
+      background: #ffffff;        /* 요청: 버튼 흰색 */
+      color: #000000;
+      min-height: 40px;
+      box-shadow: 0 6px 14px rgba(0,0,0,0.25);
+    }
+    .btn:active{ transform: translateY(1px); }
+    .btn.secondary{
+      background: rgba(255,255,255,0.85);
+    }
+    .btn.small{
+      padding: 8px 10px;
+      font-size: 13px;
+      border-radius: 10px;
+      min-height: 36px;
+    }
+
+    .input{
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid var(--card-bd);
+      background: rgba(0,0,0,0.25);
+      color: rgba(255,255,255,0.92);
+      padding: 10px 12px;
+      border-radius: 12px;
+      outline: none;
+      font-size: 14px;
+    }
+    .input::placeholder{ color: rgba(255,255,255,0.45); }
+    .field{
+      display:flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 10px;
+    }
+    .label{
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    /* 메시지 박스: 모바일 overflow 방지 */
+    .msg{
+      margin-top: 10px;
+      border: 1px solid var(--card-bd);
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-size: 13px;
+      line-height: 1.45;
+      background: rgba(0,0,0,0.25);
+
+      word-break: break-word;
+      overflow-wrap: anywhere;
+      max-height: 140px;
+      overflow: auto;
+      white-space: pre-wrap;
+    }
+    .msg.ok{ border-color: rgba(37,211,102,0.35); }
+    .msg.err{ border-color: rgba(255,92,92,0.35); }
+    .msg.info{ border-color: rgba(72,167,255,0.35); }
+
+    .list{
+      display:flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .item{
+      border: 1px solid var(--card-bd);
+      background: rgba(0,0,0,0.18);
+      border-radius: 14px;
+      padding: 12px;
+    }
+    .muted{ color: var(--muted); font-size: 12px; }
+    .addr{
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 12.5px;
+      margin-top: 6px;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+    }
+    .kv{
+      margin-top: 6px;
+      display:grid;
+      grid-template-columns: 92px 1fr;
+      gap: 6px 10px;
+      align-items: start;
+      font-size: 12.5px;
+    }
+    .kv .k{ color: var(--muted); }
+    .kv .v{
+      word-break: break-word;
+      overflow-wrap: anywhere;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+
+    .empty{
+      color: var(--muted);
+      font-size: 13px;
+      padding: 12px;
+      border: 1px dashed rgba(255,255,255,0.18);
+      border-radius: 14px;
+      text-align: center;
+    }
+
+    .hr{
+      height: 1px;
+      background: rgba(255,255,255,0.10);
+      margin: 12px 0;
+    }
   </style>
-  <script src="https://cdn.jsdelivr.net/npm/ethers@6.12.1/dist/ethers.umd.min.js"></script>
 </head>
+
 <body>
-  <header>
-    <h2>GeoHunt 관리자 페이지</h2>
-    <div style="margin-left: auto; display: flex; align-items: center; gap: 12px;">
-      <span id="walletStatus" style="font-size: 14px; font-family: monospace; color: #333;"></span>
-      <button id="btnConnectWallet" style="padding: 8px 12px; background: #333; color: #fff; border: none; border-radius: 8px; cursor: pointer;">지갑 연결</button>
+  <div id="include-head"></div>
+
+  <main>
+    <div class="top-title">관리자/스태프 모드</div>
+    <div class="sub">
+      pending 자동 목록은 Netlify Functions + Netlify Blobs 기반입니다.<br/>
+      먼저 sync로 최신 요청을 반영하고, list로 화면에 표시합니다.
     </div>
-  </header>
 
-  <div class="layout">
-    <!-- 왼쪽: 지도 -->
-    <div id="map" aria-label="지도"></div>
-
-    <!-- 오른쪽: 입력 패널 -->
-    <aside class="side">
-      <div>선택 좌표: <span id="coordText">-</span></div>
-      <div class="muted">지도를 클릭하면 lat/lon이 자동 입력됩니다.</div>
-
-      <!-- 몬스터 등록/수정 -->
-      <div class="card">
-        <h3>몬스터 등록/수정</h3>
-        <form id="monsterForm" autocomplete="off">
-          <div class="row">
-            <div>
-              <label for="m_lat">위도 (lat)</label>
-              <input type="number" step="any" id="m_lat" required />
-            </div>
-            <div>
-              <label for="m_lon">경도 (lon)</label>
-              <input type="number" step="any" id="m_lon" required />
-            </div>
-          </div>
-
-          <div class="row">
-            <div>
-              <label for="imageURL">몬스터 이미지 URL</label>
-              <input type="url" id="imageURL" value="https://puppi.netlify.app/images/mon/1.png" required />
-              <div class="hint">몬스터 ID 입력 시 자동으로 채워집니다.</div>
-            </div>
-            <div>
-              <label for="power">몬스터 파워 (필수)</label>
-              <input type="number" id="power" min="1" value="10" required />
-              <div class="hint">보상=파워, 제한시간=(파워/4)초, 필요타격=파워회</div>
-            </div>
-          </div>
-
-          <div class="row">
-            <div>
-              <label for="mid">몬스터 ID (mid)</label>
-              <input type="number" id="mid" placeholder="1" required value="1"/>
-            </div>
-            <div>
-              <label for="size">아이콘 크기(px) (선택)</label>
-              <input type="number" id="size" min="24" value="44" />
-              <div class="hint">지도 위 아이콘 픽셀 크기. 비우면 96px</div>
-            </div>
-          </div>
-
-          <div class="row">
-            <div>
-              <label for="m_range">사거리(m)</label>
-              <input type="number" id="m_range" min="1" value="10" />
-            </div>
-            <div>
-              <label for="m_damage">1회 데미지</label>
-              <input type="number" id="m_damage" min="0" value="3" />
-            </div>
-          </div>
-
-          <div class="row">
-            <div>
-              <label for="m_cooldown">쿨다운(ms)</label>
-              <input type="number" id="m_cooldown" min="200" value="2800" />
-            </div>
-            <div>
-              <label for="m_docId">수정용 문서ID (선택)</label>
-              <input type="text" id="m_docId" placeholder="기존 문서ID 입력 시 merge 업데이트" />
-            </div>
-          </div>
-
-          <!-- NEW: 몬스터 애니메이션 ID -->
-          <div class="row">
-            <div>
-              <label for="m_animId">애니메이션 ID (선택)</label>
-              <input type="number" id="m_animId" placeholder="예: 101" value="1"/>
-              <div class="hint">나중에 런타임에서 이 ID로 스프라이트/효과를 매칭합니다.</div>
-            </div>
-            <div></div>
-          </div>
-
-          <div class="subtle">
-            <strong>드랍 아이템 설정</strong>
-            <div class="hint">아래 둘 중 하나 또는 둘 다 입력할 수 있습니다.
-- <b>items</b>: 고정 전리품(사냥 완료 시 그대로 지급). 첫 번째 아이템은 자동으로 <b>빨간약</b>이 맨 앞에 오도록 보정됩니다.
-- <b>lootTable</b>: 확률 드랍(비어 있으면 무시). items가 비어 있으면 lootTable을 굴려서 전리품을 확정합니다.</div>
-
-            <label for="m_items">items (JSON 배열 또는 라인/CSV)</label>
-            <textarea id="m_items">red_potion|빨간약|1|common</textarea>
-
-            <label for="m_loot">lootTable (JSON 배열 또는 라인/CSV)</label>
-            <textarea id="m_loot" placeholder="예)
-mystic_orb|Mystic Orb|rare|0.1|1|1
-또는
-[{ &quot;id&quot;:&quot;mystic_orb&quot;, &quot;name&quot;:&quot;Mystic Orb&quot;, &quot;rarity&quot;:&quot;rare&quot;, &quot;chance&quot;:0.1, &quot;min&quot;:1, &quot;max&quot;:1 }]"></textarea>
-
-            <div class="examples">
-              <div class="hint"><b>라인/CSV 규칙</b>
-- items: <code>id|name|qty|rarity</code> 또는 <code>id,qty</code>
-- lootTable: <code>id|name|rarity|chance|min|max</code></div>
-            </div>
-          </div>
-
-          <div class="row">
-            <div>
-              <label for="m_pass">관리 비밀번호</label>
-              <input type="password" id="m_pass" placeholder="숫자/문자" required />
-            </div>
-            <div></div>
-          </div>
-
-          <button type="submit">몬스터 등록/수정</button>
-        </form>
-      </div>
-
-      <!-- 망루 등록/수정 -->
-      <div class="card">
-        <h3>망루 등록/수정</h3>
-        <form id="towerForm" autocomplete="off">
-          <div class="row">
-            <div>
-              <label for="t_lat">위도 (lat)</label>
-              <input type="number" step="any" id="t_lat" required />
-            </div>
-            <div>
-              <label for="t_lon">경도 (lon)</label>
-              <input type="number" step="any" id="t_lon" required />
-            </div>
-          </div>
-
-          <div class="row">
-            <div>
-              <label for="t_range">사거리(m)</label>
-              <input type="number" id="t_range" min="1" value="10" required />
-            </div>
-            <div>
-              <label for="t_icon">아이콘 URL (선택)</label>
-              <input type="url" id="t_icon" value="https://puppi.netlify.app/images/mon/tower.png" />
-            </div>
-          </div>
-
-          <div class="row">
-            <div>
-              <label for="t_docId">수정용 문서ID (선택)</label>
-              <input type="text" id="t_docId" placeholder="기존 문서ID 입력 시 merge 업데이트" />
-            </div>
-            <div>
-              <label for="t_pass">관리 비밀번호</label>
-              <input type="password" id="t_pass" placeholder="숫자/문자" required />
-            </div>
-          </div>
-
-          <button type="submit">망루 등록/수정</button>
-        </form>
-      </div>
-    </aside>
-  </div>
-
-  <!-- 보물박스 등록 (monsters 컬렉션 type:'treasure') -->
-  <div class="card" style="margin:14px">
-    <h3>보물박스 등록</h3>
-    <form id="treasureForm" autocomplete="off">
-      <div class="row">
-        <div>
-          <label for="tr_lat">위도 (lat)</label>
-          <input type="number" step="any" id="tr_lat" required />
-        </div>
-        <div>
-          <label for="tr_lon">경도 (lon)</label>
-          <input type="number" step="any" id="tr_lon" required />
-        </div>
-      </div>
-
-      <div class="row">
-        <div>
-          <label for="tr_img">이미지 URL (수정 가능)</label>
-          <input type="url" id="tr_img" value="https://puppi.netlify.app/images/event/treasure.png" />
-          <div class="hint">보물박스마다 다른 URL을 직접 입력해 저장할 수 있습니다.</div>
-        </div>
-        <div>
-          <label for="tr_power">파워 (메타)</label>
-          <input type="number" id="tr_power" value="100"/>
-        </div>
-      </div>
-
-      <div class="row">
-        <div>
-          <label for="tr_score">점수 보상</label>
-          <input type="number" id="tr_score" min="0" value="100" />
-        </div>
-        <div>
-          <label for="tr_animId">애니메이션 ID (정보용)</label>
-          <input type="number" id="tr_animId" placeholder="501" value="501"/>
-          <div class="hint">지금은 ID만 저장하고, 나중에 런타임에서 ID→스프라이트를 매칭합니다.</div>
-        </div>
-      </div>
-
-      <!-- 아이템 선택/추가 -->
-      <div class="subtle">
-        <strong>아이템 보상</strong>
+    <div class="grid">
+      <!-- 왼쪽: pending 자동 목록 -->
+      <section class="card">
         <div class="row">
-          <div>
-            <label for="tr_item_id">아이템 ID</label>
-            <input id="tr_item_id" placeholder="red_potion" value="red_potion"/>
-          </div>
-          <div>
-            <label for="tr_item_qty">수량</label>
-            <input id="tr_item_qty" type="number" min="1" value="1" />
-          </div>
+          <h3 style="margin:0;">pending 자동 목록</h3>
+          <button class="btn small" id="btn-sync" type="button">sync</button>
         </div>
-        <button type="button" id="tr_add_item">아이템 추가</button>
-        <div class="hint">아래 목록은 저장 시 함께 지급됩니다.</div>
-        <textarea id="tr_items" placeholder="id|name|qty&#10;red_potion|빨간약|1"></textarea>
 
-        <label for="tr_loot">lootTable (JSON 배열 또는 라인/CSV)</label>
-        <textarea id="tr_loot" placeholder="mystic_orb|Mystic Orb|rare|0.1|1|1"></textarea>
-      </div>
+        <div class="muted" style="margin-top:6px;">
+          목록 URL: /.netlify/functions/a2e_pending?action=list
+        </div>
 
-      <div class="row">
-        <div>
-          <label for="tr_docId">수정용 문서ID (선택)</label>
-          <input type="text" id="tr_docId" placeholder="기존 문서ID 입력 시 merge 업데이트" />
-        </div>
-        <div>
-          <label for="tr_pass">관리 비밀번호</label>
-          <input type="password" id="tr_pass" placeholder="숫자/문자" required />
-        </div>
-      </div>
+        <div id="msg" class="msg info" style="margin-top:10px;">대기중…</div>
 
-      <button type="submit">보물박스 등록/수정</button>
-      <pre id="tr_out" class="muted" style="margin-top:8px">-</pre>
-    </form>
-  </div>
+        <div class="hr"></div>
 
-  <!-- 상점 생성/수정 -->
-  <div class="card" style="margin:14px">
-    <h3>상점 생성/수정</h3>
-    <form id="shopForm" autocomplete="off">
-      <div class="row">
-        <div>
-          <label for="shop_lat">위도(lat)</label>
-          <input id="shop_lat" type="number" step="any" required />
+        <div id="pending-list" class="list">
+          <div class="empty">pending 로딩중…</div>
         </div>
-        <div>
-          <label for="shop_lon">경도(lon)</label>
-          <input id="shop_lon" type="number" step="any" required />
-        </div>
-      </div>
-      <div class="row">
-        <div>
-          <label for="shop_name">상점명</label>
-          <input id="shop_name" value="포션&무기 상점" required />
-        </div>
-        <div>
-          <label for="shop_active">활성</label>
-          <select id="shop_active"><option value="true" selected>활성</option><option value="false">비활성</option></select>
-        </div>
-      </div>
-      <div class="row">
-        <div>
-          <label for="shop_img">상점 이미지 URL</label>
-          <input id="shop_img" type="url" value="https://puppi.netlify.app/images/event/shop.png" />
-        </div>
-        <div>
-          <label for="shop_size">아이콘 크기(px)</label>
-          <input id="shop_size" type="number" value="68" min="24" />
-        </div>
-      </div>
-      <div class="row">
-        <div>
-          <label for="shop_docId">수정용 문서ID(선택)</label>
-          <input id="shop_docId" placeholder="기존 상점 문서ID" />
-        </div>
-        <div>
-          <label for="shop_pass">관리 비밀번호</label>
-          <input id="shop_pass" type="password" required />
-        </div>
-      </div>
-      <button type="submit">상점 저장</button>
-      <div class="hint">저장 후 아래 ‘상점 판매 아이템’ 섹션에서 품목을 추가하세요.</div>
-      <pre id="shop_out" class="muted" style="margin-top:8px">-</pre>
-    </form>
-  </div>
+      </section>
 
-  <!-- 상점 판매 아이템 추가/수정 -->
-  <div class="card" style="margin:14px">
-    <h3>상점 판매 아이템 추가/수정</h3>
-    <form id="shopItemForm" autocomplete="off">
-      <div class="row">
-        <div>
-          <label for="si_shopId">상점 문서ID</label>
-          <input id="si_shopId" placeholder="예: shops의 docId" required />
-          <div class="hint">위 ‘상점 저장’ 후 생성된 ID를 넣으세요.</div>
-        </div>
-        <div>
-          <label for="si_itemDocId">아이템 문서ID(선택)</label>
-          <input id="si_itemDocId" placeholder="기존 아이템 문서ID (없으면 자동)" />
-        </div>
-      </div>
-      <div class="row">
-        <div>
-          <label for="si_itemId">아이템 ID</label>
-          <input id="si_itemId" value="red_potion" required />
-        </div>
-        <div>
-          <label for="si_name">이름</label>
-          <input id="si_name" value="빨간약" required />
-        </div>
-      </div>
-      <div class="row">
-        <div>
-          <label for="si_icon">아이콘 URL</label>
-          <input id="si_icon" type="url" value="https://puppi.netlify.app/images/items/red_potion.png" />
-        </div>
-        <div>
-          <label for="si_stack">스택 가능</label>
-          <select id="si_stack"><option value="true" selected>가능</option><option value="false">불가</option></select>
-        </div>
-      </div>
-      <div class="row">
-        <div>
-          <label for="si_buy">구매가(GP)</label>
-          <input id="si_buy" type="number" value="50" min="0" />
-        </div>
-        <div>
-          <label for="si_sell">판매가(GP)</label>
-          <input id="si_sell" type="number" value="25" min="0" />
-        </div>
-      </div>
-      <div class="row">
-        <div>
-          <label for="si_stock">재고(비우면 무한)</label>
-          <input id="si_stock" type="number" min="0" placeholder="예: 100" />
-        </div>
-        <div>
-          <label for="si_active">활성</label>
-          <select id="si_active"><option value="true" selected>활성</option><option value="false">비활성</option></select>
-        </div>
-      </div>
+      <!-- 오른쪽: 승인(온체인) -->
+      <section class="card">
+        <h3>승인(온체인 처리)</h3>
 
-      <!-- 무기 속성(선택) -->
-      <div class="subtle">
-        <strong>무기 속성(선택)</strong>
-        <div class="row">
-          <div>
-            <label for="si_baseAtk">기본공격력</label>
-            <input id="si_baseAtk" type="number" value="0" min="0" />
-          </div>
-          <div>
-            <label for="si_extraInit">추가공격력 초기</label>
-            <input id="si_extraInit" type="number" value="0" min="0" />
-          </div>
+        <div class="muted">
+          아래 승인 버튼은 지갑 연결 후 실행됩니다.<br/>
+          실제 컨트랙트의 승인 함수(예: resolveClaim/approveClaim 등) ABI에 맞춰 admin.js에서 호출됩니다.
         </div>
-        <div class="hint">예) 장검: baseAtk=10 → 크리확률=10%</div>
-      </div>
 
-      <div class="row">
-        <div>
-          <label for="si_pass">관리 비밀번호</label>
-          <input id="si_pass" type="password" required />
+        <div class="field">
+          <div class="label">신청자 주소</div>
+          <input class="input" id="inUser" placeholder="0x..." />
         </div>
-        <div></div>
-      </div>
 
-      <button type="submit">상점 아이템 저장</button>
-      <div class="row">
-        <button type="button" id="seed_shop_items">기본 2개(빨간약/장검) 넣기</button>
-      </div>
-      <pre id="si_out" class="muted" style="margin-top:8px">-</pre>
-    </form>
-  </div>
+        <div class="field">
+          <div class="label">미션 ID</div>
+          <input class="input" id="inMission" placeholder="예: 2" inputmode="numeric" />
+        </div>
 
-  <!-- 앱 스크립트 -->
-  <script type="module" src="/geolocation/js/admin.js"></script>
-  <noscript>이 페이지를 사용하려면 자바스크립트가 필요합니다.</noscript>
+        <div class="field">
+          <div class="label">proof (선택, 필요 시)</div>
+          <input class="input" id="inProof" placeholder="0x... (없으면 비워도 됨)" />
+        </div>
+
+        <div class="row" style="margin-top:12px;">
+          <button class="btn" id="btnFillFromSelected" type="button">선택항목 채우기</button>
+          <button class="btn secondary" id="btnApprove" type="button">승인 실행</button>
+        </div>
+
+        <div id="msg2" class="msg info" style="margin-top:10px;">지갑 연결 후 승인 가능</div>
+
+        <div class="hr"></div>
+
+        <div class="muted">
+          참고: pending 카드의 “승인(온체인)” 버튼을 눌러도 위 입력칸으로 자동 채워집니다.
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <div id="include-footer"></div>
+
+  <!-- ethers v5 UMD 고정 -->
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+
+  <!-- include / wallet -->
+  <script src="/assets/js/include.js"></script>
+  <script src="/assets/js/wallet.js"></script>
+
+  <!-- pending 자동 목록 렌더 -->
+  <script src="/assets/js/admin_pending_list.js"></script>
+
+  <!-- 승인(온체인) 로직: 여기에서 ABI 맞춰 연결 -->
+  <script>
+    // admin_pending_list.js와 연동을 위해 "선택된 항목" 저장
+    window.__selectedPending = null;
+
+    // admin_pending_list.js가 list 렌더 시, 아래 함수를 호출하도록 만들어두면 더 깔끔합니다.
+    window.setSelectedPending = function (obj) {
+      window.__selectedPending = obj || null;
+      const m = document.getElementById("msg2");
+      if (m) {
+        m.textContent = obj ? "선택됨: " + obj.user + " / mission " + obj.missionId : "선택 없음";
+        m.className = "msg info";
+      }
+    };
+
+    function setMsg2(text, type) {
+      const box = document.getElementById("msg2");
+      if (!box) return;
+      box.textContent = text || "";
+      box.className = "msg " + (type || "info");
+    }
+
+    // 선택항목 → 입력칸 채우기
+    document.getElementById("btnFillFromSelected")?.addEventListener("click", () => {
+      const s = window.__selectedPending;
+      if (!s) return setMsg2("선택된 pending이 없습니다. 왼쪽 목록에서 먼저 선택하세요.", "err");
+
+      document.getElementById("inUser").value = s.user || "";
+      document.getElementById("inMission").value = String(s.missionId ?? "");
+      document.getElementById("inProof").value = s.proof || "";
+      setMsg2("입력칸에 채웠습니다.", "ok");
+    });
+
+    // 승인 실행 (실제 함수/ABI는 당신 컨트랙트에 맞춰 여기만 수정)
+    document.getElementById("btnApprove")?.addEventListener("click", async () => {
+      try {
+        if (!window.ethereum) return setMsg2("지갑이 없습니다. 메타마스크/래비 지갑을 설치하세요.", "err");
+        if (!window.provider || !window.signer) {
+          return setMsg2("지갑연결이 필요합니다. 상단 지갑연결 버튼을 눌러주세요.", "err");
+        }
+
+        const user = (document.getElementById("inUser").value || "").trim();
+        const missionId = Number((document.getElementById("inMission").value || "").trim());
+        const proof = (document.getElementById("inProof").value || "").trim();
+
+        if (!ethers.utils.isAddress(user)) return setMsg2("신청자 주소가 올바르지 않습니다.", "err");
+        if (!Number.isFinite(missionId) || missionId < 0) return setMsg2("미션 ID가 올바르지 않습니다.", "err");
+
+        setMsg2("승인 트랜잭션 준비중…", "info");
+
+        // 여기를 반드시 당신 a2e_slim ABI에 맞춰 수정해야 합니다.
+        // 예시1) resolveClaim(address user, uint256 missionId)
+        // 예시2) approveClaim(uint256 uid, uint256 missionId, bytes32 proof)
+        //
+        // 지금은 안전하게 “호출 위치만” 만들어두고, 함수명/파라미터는 다음 단계에서 맞춥니다.
+        const A2E_ADDR = "0x29C82645A2299F460BB07A76ba0aF32349bEcB3c";
+
+        // TODO: 아래 ABI/함수명은 임시입니다. 실제 컨트랙트에 맞춰 변경하세요.
+        const ABI = [
+          "function resolveClaim(address user,uint256 missionId) external"
+        ];
+
+        const c = new ethers.Contract(A2E_ADDR, ABI, window.signer);
+
+        const tx = await c.resolveClaim(user, missionId);
+        setMsg2("전송됨: " + tx.hash, "ok");
+
+        const rcpt = await tx.wait();
+        setMsg2("완료: " + rcpt.transactionHash, "ok");
+
+        // 승인 후: 목록 갱신은 sync/list로 처리(원하면 clear 로직도 추가 가능)
+      } catch (e) {
+        const msg = e?.error?.message || e?.data?.message || e?.message || String(e);
+        setMsg2(msg, "err");
+      }
+    });
+  </script>
+
+  <!-- pending 리스트 카드 클릭 시 선택 처리: admin_pending_list.js에서 이 함수를 호출해도 됨 -->
+  <script>
+    // admin_pending_list.js가 아직 "선택" 처리를 안 해놨다면,
+    // 여기서 이벤트 위임으로 카드 클릭 시 내용을 파싱해 선택 처리하는 방식도 가능.
+    // (현재는 admin_pending_list.js에서 버튼 클릭 이벤트로 setSelectedPending() 호출하는 방식이 가장 깔끔)
+  </script>
 </body>
 </html>
