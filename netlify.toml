@@ -1,0 +1,14 @@
+[build]
+  # 프로젝트 루트를 publish합니다.
+  publish = "."
+  command = ""
+
+[functions]
+  # Netlify Functions 폴더
+  directory = "netlify/functions"
+
+# /api/* → Functions 라우팅
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
