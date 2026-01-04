@@ -10,7 +10,8 @@
   "dependencies": {
     "@firebasegen/default-connector": "file:dataconnect-generated/js/default-connector",
     "@netlify/blobs": "^7.4.0",
-    "ethers": "^6.13.2"
+    "ethers": "^6.13.2",
+    "firebase-admin": "^13.6.0"
   },
   "keywords": [],
   "author": "",
