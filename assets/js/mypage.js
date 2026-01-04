@@ -27,6 +27,15 @@
       return String(v);
     }
   }
+
+  function fmtNum(v) {
+    try {
+      return Number(v).toLocaleString();
+    } catch {
+      return String(v);
+    }
+  }
+
   function fmtTime(sec) {
     if (!sec) return "-";
     return new Date(Number(sec) * 1000).toLocaleString();
@@ -39,6 +48,52 @@
     return `<span class="badge">미청구</span>`;
   }
 
+  // 경험치 임계치(프론트 계산)
+  // 스크린샷 패턴: level 5 -> 320,000 => level * 64,000
+  function nextNeedExp(level) {
+    const lv = Number(level || 0);
+    if (lv <= 0) return 0;
+    return lv * 64000;
+  }
+
+  function setXpBar(exp, needTotal) {
+    const xpWrap = $("#xpWrap");
+    const meExp = $("#meExp");
+    const meNeedTotal = $("#meNeedTotal");
+    const meNeedExp = $("#meNeedExp");
+    const meExpPct = $("#meExpPct");
+    const meExpFill = $("#meExpFill");
+    const xpRuleHint = $("#xpRuleHint");
+
+    if (!xpWrap || !meExp || !meNeedTotal || !meNeedExp || !meExpPct || !meExpFill) return;
+
+    if (!needTotal || needTotal <= 0) {
+      xpWrap.style.display = "none";
+      return;
+    }
+
+    xpWrap.style.display = "";
+    meExp.textContent = fmtNum(exp);
+    meNeedTotal.textContent = fmtNum(needTotal);
+
+    const left = Math.max(0, needTotal - exp);
+    meNeedExp.textContent = fmtNum(left);
+
+    const pct = Math.max(0, Math.min(100, Math.floor((exp / needTotal) * 100)));
+    meExpPct.textContent = String(pct);
+    meExpFill.style.width = pct + "%";
+
+    if (xpRuleHint) xpRuleHint.textContent = "기준: 레벨 × 64,000";
+  }
+
+  let ME_CACHE = {
+    idNum: 0,
+    level: 0,
+    exp: 0,
+    need: 0,
+    left: 0,
+  };
+
   async function loadMe() {
     const meWallet = $("#meWallet");
     const meId = $("#meId");
@@ -48,6 +103,7 @@
     const mePay = $("#mePay");
     const meTotal = $("#meTotal");
     const goAdmin = $("#goAdmin");
+    const levelUpHint = $("#levelUpHint");
 
     if (!WALLET.provider || !WALLET.address) return;
 
@@ -59,7 +115,7 @@
       a2e.staff(WALLET.address).catch(() => 0),
     ]);
 
-    if (Number(staffLv) >= 5) goAdmin.style.display = "";
+    if (goAdmin && Number(staffLv) >= 5) goAdmin.style.display = "";
 
     const idNum = id.toNumber();
     meId.textContent = String(idNum);
@@ -70,15 +126,41 @@
       meUntil.textContent = "-";
       mePay.textContent = "-";
       meTotal.textContent = "-";
+      setXpBar(0, 0);
+      if (levelUpHint) levelUpHint.textContent = "";
+      ME_CACHE = { idNum: 0, level: 0, exp: 0, need: 0, left: 0 };
       return;
     }
 
     const info = await a2e.myInfo(idNum);
+    // info: owner, mento, level, exp, mypay, totalpay, memberUntil, blacklisted
+
+    const level = Number(info.level);
+    const exp = Number(info.exp);
+
+    const need = nextNeedExp(level);
+    const left = Math.max(0, need - exp);
+
     meMento.textContent = info.mento;
-    meLevel.textContent = String(info.level);
+    meLevel.textContent = String(level);
+
     meUntil.textContent = fmtTime(info.memberUntil);
     mePay.textContent = `${fmtUnits(info.mypay)} HEX`;
     meTotal.textContent = `${fmtUnits(info.totalpay)} HEX`;
+
+    setXpBar(exp, need);
+
+    ME_CACHE = { idNum, level, exp, need, left };
+
+    if (levelUpHint) {
+      if (need === 0) {
+        levelUpHint.textContent = "";
+      } else if (left > 0) {
+        levelUpHint.textContent = `레벨업까지 남은 경험치: ${fmtNum(left)}`;
+      } else {
+        levelUpHint.textContent = `레벨업 조건 충족 (현재 컨트랙트에서는 관리자만 레벨 변경 가능)`;
+      }
+    }
   }
 
   async function renderMyMissions() {
@@ -120,6 +202,62 @@
     }
   }
 
+  async function renderMyMentees() {
+    const grid = $("#myMenteeGrid");
+    if (!grid) return;
+    grid.innerHTML = "";
+
+    if (!WALLET.provider || !WALLET.address) return;
+    const a2e = getA2E(WALLET.provider);
+
+    let nextId = 0;
+    try {
+      const bn = await a2e.nextId();
+      nextId = Number(bn);
+    } catch (e) {
+      grid.innerHTML = `<div class="card"><div class="sub">멘티 목록 조회 실패 (nextId 조회 불가)</div></div>`;
+      return;
+    }
+
+    const my = WALLET.address.toLowerCase();
+    const mentees = [];
+
+    for (let id = 1; id < nextId; id++) {
+      try {
+        const info = await a2e.myInfo(id);
+        const owner = String(info.owner || "").toLowerCase();
+        const mento = String(info.mento || "").toLowerCase();
+        const level = Number(info.level);
+        const exp = Number(info.exp);
+
+        if (owner !== "0x0000000000000000000000000000000000000000" && mento === my && level > 0) {
+          mentees.push({ id, owner: info.owner, level, exp });
+        }
+      } catch (e) {}
+    }
+
+    if (mentees.length === 0) {
+      grid.innerHTML = `<div class="card"><div class="sub">멘티가 없습니다.</div></div>`;
+      return;
+    }
+
+    for (const m of mentees) {
+      const card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML = `
+        <div class="row" style="justify-content:space-between; gap:10px; flex-wrap:wrap;">
+          <div class="title">ID ${m.id}</div>
+          <div class="sub">${m.owner}</div>
+        </div>
+        <div class="kv">
+          <div class="k">레벨</div><div class="v">${m.level}</div>
+          <div class="k">Experience</div><div class="v">${fmtNum(m.exp)}</div>
+        </div>
+      `;
+      grid.appendChild(card);
+    }
+  }
+
   async function onWithdraw() {
     try {
       if (!WALLET.signer) throw new Error("지갑을 연결해 주세요.");
@@ -136,22 +274,42 @@
       await walletRefreshHex();
       await loadMe();
       await renderMyMissions();
+      await renderMyMentees();
     } catch (e) {
       toast(asUserMessage(e), "error", "출금 실패");
     }
   }
 
+  async function onLevelUpClick() {
+    if (ME_CACHE.idNum === 0) {
+      toast("미가입 상태입니다.", "error");
+      return;
+    }
+    if (ME_CACHE.need === 0) {
+      toast("레벨 정보가 없습니다.", "error");
+      return;
+    }
+    if (ME_CACHE.left > 0) {
+      toast(`레벨업까지 경험치가 부족합니다. 남은 경험치: ${fmtNum(ME_CACHE.left)}`, "info");
+      return;
+    }
+    toast("레벨업 조건은 충족했습니다. 현재 컨트랙트에서는 관리자만 레벨 변경이 가능합니다.", "info");
+  }
+
   window.onWalletConnected = async function () {
     await loadMe();
     await renderMyMissions();
+    await renderMyMentees();
   };
 
   document.addEventListener("DOMContentLoaded", async () => {
     $("#btnWithdraw")?.addEventListener("click", onWithdraw);
+    $("#btnLevelUp")?.addEventListener("click", onLevelUpClick);
 
     if (WALLET.provider && WALLET.address) {
       await loadMe();
       await renderMyMissions();
+      await renderMyMentees();
     }
   });
 })();

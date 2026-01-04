@@ -102,5 +102,26 @@ window.APP = {
       guide: "예: 지정 문구 포함 댓글 작성 후 링크 제출",
       proofExample: "예: comment_url=https://...; username=...",
     },
+       {
+      id: 4,
+      title: "페이스북 활동",
+      desc: "광고주 페이지 방문 후 특정 액션 수행",
+      guide: "예: 광고주 링크 클릭 → 스크롤 10초 → 특정 버튼 캡처",
+      proofExample: "예: url=https://...; screenshot_hash=...; note=...",
+    },
+    {
+      id: 5,
+      title: "단체 채팅방 참여",
+      desc: "SNS 공유 미션",
+      guide: "예: 인스타/페북 공유 후 공유 링크 제출",
+      proofExample: "예: share_url=https://...; post_id=...",
+    },
+    {
+      id: 6,
+      title: "네이버 밴드",
+      desc: "댓글/리뷰 작성 미션",
+      guide: "예: 지정 문구 포함 댓글 작성 후 링크 제출",
+      proofExample: "예: comment_url=https://...; username=...",
+    },
   ],
 };

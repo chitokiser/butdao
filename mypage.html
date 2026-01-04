@@ -10,6 +10,17 @@
 
   <link rel="stylesheet" href="/assets/css/style.css" />
   <link rel="stylesheet" href="/assets/css/a2e.css" />
+
+  <style>
+    .xp-wrap{margin-top:12px}
+    .xp-head{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+    .xp-head .l{font-weight:700}
+    .xp-head .r{opacity:.85}
+    .xp-bar{margin-top:8px;height:14px;border-radius:999px;background:rgba(255,255,255,.12);overflow:hidden}
+    .xp-fill{height:100%;width:0%;border-radius:999px;background:linear-gradient(90deg, rgba(70,230,160,.95), rgba(70,160,230,.95));transition:width .35s ease}
+    .xp-sub{margin-top:8px;opacity:.85;font-size:13px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+    .xp-sub .muted{opacity:.75}
+  </style>
 </head>
 <body>
 
@@ -21,6 +32,7 @@
 
     <section class="card" style="margin-top:12px;">
       <div class="title">내 정보</div>
+
       <div class="kv">
         <div class="k">지갑</div><div class="v" id="meWallet">-</div>
         <div class="k">내 ID</div><div class="v" id="meId">-</div>
@@ -31,11 +43,35 @@
         <div class="k">누적출금</div><div class="v" id="meTotal">-</div>
       </div>
 
-      <div class="row" style="margin-top:12px;">
+      <!-- 경험치 바 -->
+      <div class="xp-wrap" id="xpWrap" style="display:none;">
+        <div class="xp-head">
+          <div class="l">Experience</div>
+          <div class="r"><span id="meExp">-</span> / <span id="meNeedTotal">-</span> (<span id="meExpPct">0</span>%)</div>
+        </div>
+        <div class="xp-bar" aria-label="Experience progress">
+          <div class="xp-fill" id="meExpFill"></div>
+        </div>
+        <div class="xp-sub">
+          <div>다음 레벨까지 남은 경험치: <span id="meNeedExp">-</span></div>
+          <div class="muted" id="xpRuleHint">기준: 레벨 × 64,000</div>
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:12px; flex-wrap:wrap; gap:10px;">
         <button class="btn" id="btnWithdraw">출금하기</button>
+        <button class="btn" id="btnLevelUp">Level Up</button>
         <a class="btn ghost" href="/a2e.html">A2E로</a>
         <a class="btn ghost" href="/admin.html" id="goAdmin" style="display:none;">관리자</a>
       </div>
+
+      <div class="sub" id="levelUpHint" style="margin-top:10px;"></div>
+    </section>
+
+    <section class="card" style="margin-top:12px;">
+      <div class="title">나의 멘티</div>
+      <div class="sub">mento가 내 지갑 주소인 회원 목록</div>
+      <div class="grid" id="myMenteeGrid" style="margin-top:12px;"></div>
     </section>
 
     <section class="card" style="margin-top:12px;">

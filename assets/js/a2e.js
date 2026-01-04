@@ -288,6 +288,22 @@
       toast(asUserMessage(e), "error", "출금 실패");
     }
   }
+async function saveProofUrlToNetlify({ proofHash, url, chainId, contract, owner, id, missionId, txHash }) {
+  await fetch("/.netlify/functions/proof_save", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      proofHash,
+      url,
+      chainId,
+      contract,
+      owner,
+      id,
+      missionId,
+      txHash
+    })
+  });
+}
 
   async function bindMissionButtons() {
     for (const ms of APP.missions) {
