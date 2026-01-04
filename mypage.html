@@ -2,162 +2,60 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>PawDAO - MyPage</title>
+  <title>PawDAO · 마이페이지</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
   <link rel="icon" href="/assets/img/favicon.png">
   <link rel="shortcut icon" href="/assets/img/favicon.png">
+
   <link rel="stylesheet" href="/assets/css/style.css" />
+  <link rel="stylesheet" href="/assets/css/a2e.css" />
 </head>
 <body>
 
   <div id="include-head"></div>
 
-  <main id="content" style="padding:16px;max-width:980px;margin:0 auto;">
-    <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;">
-      <div>
-        <div style="font-size:20px;">마이페이지</div>
-        <div style="font-size:13px;opacity:.85;margin-top:6px;">갱신 / 청구 현황 / 출금 / (관리자 모드) 승인 및 미션 등록</div>
-      </div>
-      <a class="btn" href="/a2e.html" style="text-decoration:none;display:inline-flex;align-items:center;">A2E로</a>
-    </div>
+  <main class="a2e-wrap">
+    <div class="h1">마이페이지</div>
+    <div class="sub">가입/갱신/출금/미션 상태를 한 곳에서 봅니다.</div>
 
-    <div id="mp_msg" class="msgbox" style="display:none;"></div>
-
-    <div style="margin-top:14px;padding:12px;border:1px solid #222;border-radius:14px;">
-      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
-        <div style="font-size:13px;opacity:.85;">내 주소</div>
-        <div id="mp_me" style="font-size:13px;overflow-wrap:anywhere;"></div>
-      </div>
-
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px;">
-        <div style="padding:10px;border:1px solid #222;border-radius:12px;">
-          <div style="font-size:12px;opacity:.8;">내 ID</div>
-          <div id="mp_myId" style="font-size:18px;margin-top:6px;">-</div>
-        </div>
-        <div style="padding:10px;border:1px solid #222;border-radius:12px;">
-          <div style="font-size:12px;opacity:.8;">상태</div>
-          <div id="mp_state" style="font-size:13px;margin-top:6px;white-space:pre-wrap;">-</div>
-        </div>
+    <section class="card" style="margin-top:12px;">
+      <div class="title">내 정보</div>
+      <div class="kv">
+        <div class="k">지갑</div><div class="v" id="meWallet">-</div>
+        <div class="k">내 ID</div><div class="v" id="meId">-</div>
+        <div class="k">멘토</div><div class="v" id="meMento">-</div>
+        <div class="k">레벨</div><div class="v" id="meLevel">-</div>
+        <div class="k">만료일</div><div class="v" id="meUntil">-</div>
+        <div class="k">출금가능</div><div class="v" id="mePay">-</div>
+        <div class="k">누적출금</div><div class="v" id="meTotal">-</div>
       </div>
 
-      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:10px;">
-        <div style="padding:10px;border:1px solid #222;border-radius:12px;">
-          <div style="font-size:12px;opacity:.8;">회원 만료</div>
-          <div id="mp_until" style="font-size:14px;margin-top:6px;">-</div>
-        </div>
-        <div style="padding:10px;border:1px solid #222;border-radius:12px;">
-          <div style="font-size:12px;opacity:.8;">출금 가능</div>
-          <div id="mp_mypay" style="font-size:14px;margin-top:6px;">-</div>
-        </div>
-        <div style="padding:10px;border:1px solid #222;border-radius:12px;">
-          <div style="font-size:12px;opacity:.8;">누적 출금</div>
-          <div id="mp_totalpay" style="font-size:14px;margin-top:6px;">-</div>
-        </div>
+      <div class="row" style="margin-top:12px;">
+        <button class="btn" id="btnWithdraw">출금하기</button>
+        <a class="btn ghost" href="/a2e.html">A2E로</a>
+        <a class="btn ghost" href="/admin.html" id="goAdmin" style="display:none;">관리자</a>
       </div>
+    </section>
 
-      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">
-        <button id="mp_withdrawBtn" class="btn" style="min-width:180px;">출금하기</button>
-        <div id="mp_withdrawHint" style="font-size:13px;opacity:.9;white-space:pre-wrap;"></div>
-      </div>
-    </div>
-
-    <div style="margin-top:14px;padding:12px;border:1px solid #222;border-radius:14px;">
-      <div style="font-size:16px;margin-bottom:10px;">회원권 갱신</div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
-        <div style="min-width:220px;flex:1;">
-          <div style="font-size:13px;opacity:.85;margin-bottom:6px;">갱신 개월 수</div>
-          <input id="mp_months" type="number" min="1" value="1"
-                 style="width:100%;padding:10px;border-radius:10px;border:1px solid #222;background:#0e0e0e;color:#fff;">
-        </div>
-        <button id="mp_renewBtn" class="btn" style="min-width:180px;">갱신 결제</button>
-      </div>
-      <div id="mp_renewHint" style="margin-top:10px;font-size:13px;opacity:.9;white-space:pre-wrap;"></div>
-    </div>
-
-    <div id="mp_adminPanel" style="display:none;margin-top:18px;padding:12px;border:1px solid #222;border-radius:14px;">
-      <div style="font-size:18px;margin-bottom:10px;">관리자/스태프 모드</div>
-
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-        <div style="border:1px solid #222;border-radius:14px;padding:12px;">
-          <div style="font-size:16px;margin-bottom:10px;">청구 조회/승인</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-            <div>
-              <div style="font-size:13px;opacity:.85;margin-bottom:6px;">ID</div>
-              <input id="ad_id" type="number" min="1" placeholder="예: 1"
-                     style="width:100%;padding:10px;border-radius:10px;border:1px solid #222;background:#0e0e0e;color:#fff;">
-            </div>
-            <div>
-              <div style="font-size:13px;opacity:.85;margin-bottom:6px;">미션 ID</div>
-              <input id="ad_missionId" type="number" min="1" placeholder="예: 3"
-                     style="width:100%;padding:10px;border-radius:10px;border:1px solid #222;background:#0e0e0e;color:#fff;">
-            </div>
-          </div>
-
-          <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;">
-            <button id="ad_viewBtn" class="btn" style="min-width:180px;">청구 조회</button>
-            <button id="ad_resolveBtn" class="btn" style="min-width:180px;">승인(적립)</button>
-          </div>
-
-          <div id="ad_info" style="margin-top:10px;font-size:13px;opacity:.9;white-space:pre-wrap;overflow-wrap:anywhere;"></div>
-        </div>
-
-        <div style="border:1px solid #222;border-radius:14px;padding:12px;">
-          <div style="font-size:16px;margin-bottom:10px;">수수료 강제 이체</div>
-          <div style="font-size:13px;opacity:.85;">
-            join/payMembership 결제액의 10%가 feeAcc에 누적되고, feeThreshold 이상이면 자동으로 butbank로 이체됩니다.
-          </div>
-          <div style="margin-top:10px;">
-            <button id="btn_flushFee" class="btn" style="min-width:200px;">flushFee 실행</button>
-            <div id="fee_hint" style="margin-top:10px;font-size:13px;opacity:.9;white-space:pre-wrap;"></div>
-          </div>
-        </div>
-      </div>
-
-      <div style="height:14px;"></div>
-
-      <div style="border:1px solid #222;border-radius:14px;padding:12px;">
-        <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;">
-          <div style="font-size:16px;">광고 미션 등록/관리</div>
-          <button id="btn_reloadMissions" class="btn">미션 새로고침</button>
-        </div>
-
-        <div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;align-items:end;">
-          <div>
-            <div style="font-size:13px;opacity:.85;margin-bottom:6px;">미션 ID</div>
-            <input id="ad_setMissionId" type="number" min="1" placeholder="예: 7"
-                   style="width:100%;padding:10px;border-radius:10px;border:1px solid #222;background:#0e0e0e;color:#fff;">
-          </div>
-          <div>
-            <div style="font-size:13px;opacity:.85;margin-bottom:6px;">단가 (HEX)</div>
-            <input id="ad_setPrice" type="number" min="0" step="0.000001" placeholder="예: 3"
-                   style="width:100%;padding:10px;border-radius:10px;border:1px solid #222;background:#0e0e0e;color:#fff;">
-          </div>
-          <div style="display:flex;gap:10px;flex-wrap:wrap;">
-            <button id="ad_setPriceBtn" class="btn" style="min-width:140px;">저장</button>
-            <button id="ad_disableBtn" class="btn" style="min-width:140px;">비활성(0)</button>
-          </div>
-        </div>
-
-        <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;">
-          <button id="ad_addToListBtn" class="btn" style="min-width:180px;">목록에 추가(오프체인)</button>
-          <button id="ad_removeFromListBtn" class="btn" style="min-width:180px;">목록에서 제거(오프체인)</button>
-          <div id="ad_priceHint" style="font-size:13px;opacity:.9;white-space:pre-wrap;"></div>
-        </div>
-
-        <div id="adminMissionGrid" style="margin-top:12px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;"></div>
-      </div>
-    </div>
+    <section class="card" style="margin-top:12px;">
+      <div class="title">내 미션 상태</div>
+      <div class="sub">심사중(1) / 반려(2) / 승인완료(3)</div>
+      <div class="grid" id="myMissionGrid" style="margin-top:12px;"></div>
+    </section>
   </main>
 
   <div id="include-footer"></div>
 
+  <div class="toast" id="toast">
+    <div class="t" id="toastTitle">알림</div>
+    <div class="m" id="toastMsg"></div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <script src="/assets/js/config.js"></script>
   <script src="/assets/js/include.js"></script>
   <script src="/assets/js/wallet.js"></script>
-
-  <script src="/assets/js/missions.js"></script>
-  <script src="/assets/js/a2e_id.js"></script>
   <script src="/assets/js/mypage.js"></script>
-
 </body>
 </html>

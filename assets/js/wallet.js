@@ -1,106 +1,155 @@
-let provider;
-let signer;
-let userAddress;
+// /assets/js/wallet.js
+(function () {
+  const $ = (s) => document.querySelector(s);
 
-const HEX_ADDRESS = "0x41F2Ea9F4eF7c4E35ba1a8438fC80937eD4E5464";  //HEX
-const HEX_ABI = [
-  "function balanceOf(address) view returns (uint256)",
-  "function decimals() view returns (uint8)",
-  "function transferFrom(address f, address t, uint256 v) external returns (bool)",
-  "function approve(address s, uint256 v) external returns (bool) ",
-  "function transfer(address t, uint256 v) external returns (bool)",
-  "function allowance(address o, address s) external view returns (uint256)"
-];
+  window.WALLET = {
+    provider: null,       // ethers.providers.Web3Provider
+    signer: null,
+    address: null,
+    chainId: null,
+  };
 
-const CHAINS = {
-  opBNB: {
-    chainId: "0xCC",
-    chainName: "opBNB Mainnet",
-    rpcUrls: ["https://opbnb-mainnet-rpc.bnbchain.org"],
-    nativeCurrency: { name: "BNB", symbol: "BNB", decimals: 18 },
-    blockExplorerUrls: ["https://opbnbscan.com"]
-  },
-  BSC: {
-    chainId: "0x38",
-    chainName: "BNB Smart Chain",
-    rpcUrls: ["https://bsc-dataseed.binance.org"],
-    nativeCurrency: { name: "BNB", symbol: "BNB", decimals: 18 },
-    blockExplorerUrls: ["https://bscscan.com"]
-  }
-};
-
-async function connectWallet() {
-  if (!window.ethereum) {
-    alert("MetaMask 또는 Rabby 지갑이 필요합니다.");
-    return;
+  function shortAddr(a) {
+    if (!a) return "-";
+    return a.slice(0, 6) + "..." + a.slice(-4);
   }
 
-  try {
-    // 1️⃣ 계정 요청
-    await window.ethereum.request({
-      method: "eth_requestAccounts"
-    });
+  function setWalletUI() {
+    const addrEl = $("#wallet-addr");
+    const btn = $("#wallet-btn");
+    if (!addrEl || !btn) return;
 
-    // 2️⃣ 체인 확인
-    const currentChain = await window.ethereum.request({
-      method: "eth_chainId"
-    });
+    if (window.WALLET.address) {
+      addrEl.textContent = shortAddr(window.WALLET.address);
+      btn.textContent = "연결됨";
+      btn.classList.add("is-connected");
+    } else {
+      addrEl.textContent = "-";
+      btn.textContent = "지갑연결";
+      btn.classList.remove("is-connected");
+    }
+  }
 
-    // 3️⃣ opBNB 아니면 자동 전환 시도
-    if (currentChain !== CHAINS.opBNB.chainId) {
-      try {
+  async function updateHexBalance() {
+    const balEl = $("#hex-balance");
+    if (!balEl) return;
+
+    try {
+      if (!window.WALLET.provider || !window.WALLET.address) {
+        balEl.textContent = "HEX잔고: -";
+        return;
+      }
+
+      const a2e = getA2ERead();
+      const hexAddr = await a2e.hexToken();
+      const hex = new ethers.Contract(hexAddr, APP.erc20Abi, window.WALLET.provider);
+      const [sym, dec, bal] = await Promise.all([
+        hex.symbol().catch(() => "HEX"),
+        hex.decimals().catch(() => 18),
+        hex.balanceOf(window.WALLET.address),
+      ]);
+
+      const fmt = ethers.utils.formatUnits(bal, dec);
+      balEl.textContent = `${sym}잔고: ${Number(fmt).toLocaleString(undefined, { maximumFractionDigits: 4 })}`;
+    } catch (e) {
+      balEl.textContent = "HEX잔고: -";
+    }
+  }
+
+  function getA2ERead() {
+    const rpc = new ethers.providers.JsonRpcProvider(APP.chain.rpcUrl);
+    return new ethers.Contract(APP.contracts.a2e, APP.a2eAbi, rpc);
+  }
+
+  async function ensureChain() {
+    const target = "0x" + APP.chain.chainId.toString(16);
+
+    // 메타마스크/다른 지갑 확장 충돌 메시지는 확장 프로그램 문제라 코드로 완전 해결 불가
+    // 우리는 window.ethereum을 덮어쓰지 않고, 요청만 합니다.
+    if (!window.ethereum) throw new Error("지갑 확장(메타마스크/라비 등)을 설치해 주세요.");
+
+    try {
+      await window.ethereum.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: target }],
+      });
+    } catch (e) {
+      // 체인이 없으면 추가
+      if (e && (e.code === 4902 || String(e.message || "").includes("4902"))) {
         await window.ethereum.request({
-          method: "wallet_switchEthereumChain",
-          params: [{ chainId: CHAINS.opBNB.chainId }]
+          method: "wallet_addEthereumChain",
+          params: [{
+            chainId: target,
+            chainName: APP.chain.name,
+            rpcUrls: [APP.chain.rpcUrl],
+            nativeCurrency: { name: "BNB", symbol: "BNB", decimals: 18 },
+            blockExplorerUrls: [APP.chain.blockExplorer],
+          }],
         });
-      } catch (switchError) {
-        // 체인 없으면 추가
-        if (switchError.code === 4902) {
-          await window.ethereum.request({
-            method: "wallet_addEthereumChain",
-            params: [CHAINS.opBNB]
-          });
-        } else {
-          throw switchError;
-        }
+      } else {
+        throw e;
       }
     }
-
-    // 4️⃣ ethers 연결
-    provider = new ethers.providers.Web3Provider(window.ethereum)
-
-    signer = await provider.getSigner();
-    userAddress = await signer.getAddress();
-
-    document.getElementById("wallet-btn").innerText =
-      userAddress.slice(0, 6) + "..." + userAddress.slice(-4);
-
-    document.getElementById("wallet-btn").classList.add("connected");
-
-    loadHexBalance();
-    listenWalletEvents();
-
-  } catch (err) {
-    console.error("Wallet connect error:", err);
-    alert("지갑 연결 실패");
   }
-}
 
-async function loadHexBalance() {
-  const hex = new ethers.Contract(HEX_ADDRESS, HEX_ABI, provider);
-  const decimals = await hex.decimals();
-  const bal = await hex.balanceOf(userAddress);
+  window.connectWallet = async function connectWallet() {
+    try {
+      await ensureChain();
 
-  const formatted = Number(
-    ethers.utils.formatUnits(bal, decimals)
-  );
+      const web3 = new ethers.providers.Web3Provider(window.ethereum, "any");
+      await web3.send("eth_requestAccounts", []);
+      const signer = web3.getSigner();
+      const addr = await signer.getAddress();
+      const net = await web3.getNetwork();
 
-  document.getElementById("hex-balance").innerHTML =
-    `<span class="hex-icon">⬡</span> ${formatted.toLocaleString()} HEX`;
-}
+      window.WALLET.provider = web3;
+      window.WALLET.signer = signer;
+      window.WALLET.address = addr;
+      window.WALLET.chainId = net.chainId;
 
+      setWalletUI();
+      await updateHexBalance();
 
-function listenWalletEvents() {
-  window.ethereum.on("accountsChanged", () => location.reload());
-  window.ethereum.on("chainChanged", () => location.reload());
-}
+      // 페이지별 훅
+      if (typeof window.onWalletConnected === "function") {
+        await window.onWalletConnected();
+      }
+    } catch (e) {
+      window.uiToast?.(asUserMessage(e), "error");
+    }
+  };
+
+  // chain/account 변경 반영
+  if (window.ethereum && window.ethereum.on) {
+    window.ethereum.on("accountsChanged", () => {
+      window.location.reload();
+    });
+    window.ethereum.on("chainChanged", () => {
+      window.location.reload();
+    });
+  }
+
+  window.walletRefreshHex = updateHexBalance;
+  window.walletShortAddr = shortAddr;
+
+  // 공통 에러 메시지(긴 문자열 모바일 줄바꿈 대응은 CSS에서)
+  window.asUserMessage = function asUserMessage(e) {
+    const msg = e?.reason || e?.data?.message || e?.message || String(e || "");
+    // 흔한 패턴 정리
+    if (msg.includes("user rejected")) return "사용자가 서명을 취소했습니다.";
+    if (msg.includes("insufficient funds")) return "가스비(BNB)가 부족합니다.";
+    if (msg.includes("execution reverted")) {
+      // revert: XXX 또는 custom error selector만 있는 경우도 있음
+      const m = msg.match(/execution reverted(?::\s*)?([A-Za-z0-9_]+)?/);
+      const code = (m && m[1]) ? m[1] : "";
+      return code ? `실행 실패: ${code}` : "실행 실패(리버트)";
+    }
+    return msg;
+  };
+
+  // 초기 UI
+  document.addEventListener("DOMContentLoaded", () => {
+    setWalletUI();
+    updateHexBalance();
+  });
+})();

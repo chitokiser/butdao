@@ -1,179 +1,193 @@
 // /assets/js/admin.js
-(() => {
-  const FN = "/.netlify/functions/a2e_pending";
-  const A2E_ADDR = "0x29C82645A2299F460BB07A76ba0aF32349bEcB3c";
+(function () {
+  const $ = (s) => document.querySelector(s);
 
-  // TODO: 실제 컨트랙트 승인 함수에 맞춰 ABI/함수명만 바꾸면 됨
-  // 기본 가정: approve(id, missionId) 또는 resolveClaim(id, missionId)
-  // 아래는 일단 resolveClaim(uint256,uint256)로 잡아둠
-  const A2E_ABI = [
-    "function resolveClaim(uint256 id, uint256 missionId) external",
-  ];
+  function toast(msg, type = "info", title = "알림") {
+    const box = $("#toast");
+    const t = $("#toastTitle");
+    const m = $("#toastMsg");
+    if (!box || !t || !m) return;
+    t.textContent = title;
+    m.textContent = msg;
+    box.classList.add("show");
+    clearTimeout(window.__toastTimer);
+    window.__toastTimer = setTimeout(() => box.classList.remove("show"), 4500);
+  }
+  window.uiToast = toast;
 
-  const $ = (id) => document.getElementById(id);
-
-  function setMsg(id, text, type = "info") {
-    const el = $(id);
-    if (!el) return;
-    el.textContent = text || "";
-    el.className = "msg " + type;
+  function getA2E(x) {
+    return new ethers.Contract(APP.contracts.a2e, APP.a2eAbi, x);
   }
 
-  function esc(s) {
-    return String(s ?? "").replace(/[&<>"']/g, (m) => ({
-      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
-    }[m]));
+  function fmtUnits(v, dec = 18, digits = 4) {
+    try {
+      const s = ethers.utils.formatUnits(v, dec);
+      return Number(s).toLocaleString(undefined, { maximumFractionDigits: digits });
+    } catch {
+      return String(v);
+    }
   }
 
-  async function api(action, params = {}) {
-    const u = new URL(location.origin + FN);
-    u.searchParams.set("action", action);
-    for (const [k, v] of Object.entries(params)) u.searchParams.set(k, String(v));
-    const r = await fetch(u.toString(), { cache: "no-store" });
-    return r.json();
+  function fmtTime(sec) {
+    if (!sec) return "-";
+    const d = new Date(Number(sec) * 1000);
+    return d.toLocaleString();
   }
 
-  let selected = null;
-
-  function fillForm(item) {
-    selected = item;
-    $("inId").value = String(item.id ?? "");
-    $("inMission").value = String(item.missionId ?? "");
-    $("inProof").value = String(item.proof ?? "");
-    setMsg("msg2", "선택됨: id=" + item.id + " / mission=" + item.missionId, "ok");
+  async function guardStaff() {
+    if (!WALLET.provider || !WALLET.address) throw new Error("지갑을 연결해 주세요.");
+    const a2e = getA2E(WALLET.provider);
+    const lv = await a2e.staff(WALLET.address);
+    if (Number(lv) < 5) throw new Error("스태프 권한이 필요합니다.(staff >= 5)");
   }
 
-  function render(items) {
-    const wrap = $("pending-list");
-    if (!wrap) return;
+  async function loadCurrentMissionPrice() {
+    try {
+      await guardStaff();
+      const a2e = getA2E(WALLET.provider);
+      const mid = Number($("#mId").value || "1");
+      const p = await a2e.adprice(mid);
+      $("#curPrice").textContent = `현재 단가: ${fmtUnits(p)} HEX`;
+    } catch (e) {
+      $("#curPrice").textContent = "현재 단가: -";
+    }
+  }
 
-    if (!items || items.length === 0) {
-      wrap.innerHTML = `<div class="empty">pending 없음</div>`;
+  async function onSetAdPrice() {
+    try {
+      await guardStaff();
+      if (!WALLET.signer) throw new Error("지갑을 연결해 주세요.");
+
+      const mid = Number($("#mId").value || "0");
+      const priceStr = String($("#mPrice").value || "").trim();
+      if (!mid || mid <= 0) throw new Error("missionId가 올바르지 않습니다.");
+      if (!priceStr) throw new Error("price를 입력하세요.");
+
+      const v = ethers.utils.parseUnits(priceStr, 18);
+
+      const a2e = getA2E(WALLET.signer);
+      toast("setAdPrice 전송...", "info");
+      const tx = await a2e.setAdPrice(mid, v);
+      await tx.wait();
+
+      toast("저장 완료", "ok");
+      await loadCurrentMissionPrice();
+    } catch (e) {
+      toast(asUserMessage(e), "error", "저장 실패");
+    }
+  }
+
+  async function renderPending() {
+    const grid = $("#pendingGrid");
+    grid.innerHTML = "";
+
+    await guardStaff();
+
+    const a2e = getA2E(WALLET.provider);
+    const n = await a2e.pendingCount();
+    const count = n.toNumber();
+
+    if (count === 0) {
+      grid.innerHTML = `<div class="sub">심사중 요청이 없습니다.</div>`;
       return;
     }
 
-    wrap.innerHTML = items.map((it) => {
-      const when = it.requestedAt ? new Date(it.requestedAt).toLocaleString() : "-";
-      return `
-        <div class="item" data-key="${esc(it.key)}">
-          <div class="row">
-            <div class="muted">id ${esc(it.id)} · mission ${esc(it.missionId)}</div>
-            <button class="btn small secondary"
-              data-act="select"
-              data-id="${esc(it.id)}"
-              data-mission="${esc(it.missionId)}"
-              data-proof="${esc(it.proof)}"
-              data-key="${esc(it.key)}"
-            >선택</button>
-          </div>
-          <div class="kv">
-            <div class="k">proof</div><div class="v">${esc(it.proof)}</div>
-            <div class="k">tx</div><div class="v">${esc(it.tx)}</div>
-            <div class="k">block</div><div class="v">${esc(it.blockNumber)}</div>
-            <div class="k">time</div><div class="v">${esc(when)}</div>
-          </div>
+    // 최신이 뒤에 쌓이는 구조이므로 역순 렌더(최근 먼저)
+    for (let i = count - 1; i >= 0; i--) {
+      const item = await a2e.pendingAt(i);
+      const id = item.id.toNumber();
+      const missionId = item.missionId.toNumber();
+      const owner = item.owner;
+      const reqAt = item.reqAt ? Number(item.reqAt) : 0;
+      const proof = item.proof;
+
+      // 미션 단가/상태도 같이 확인
+      let price = "0";
+      let status = 0;
+      try {
+        const ci = await a2e.claimInfo(id, missionId);
+        status = Number(ci.status);
+        price = fmtUnits(ci.price_);
+      } catch {}
+
+      // pendingList엔 심사중만 들어오지만 안전상 status 확인
+      if (status !== 1) continue;
+
+      const card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML = `
+        <div class="row">
+          <div class="title">ID ${id} · 미션 #${missionId}</div>
+          <span class="badge warn">심사중</span>
+        </div>
+
+        <div class="kv">
+          <div class="k">요청자</div><div class="v">${owner}</div>
+          <div class="k">요청시각</div><div class="v">${reqAt ? fmtTime(reqAt) : "-"}</div>
+          <div class="k">단가</div><div class="v">${price} HEX</div>
+          <div class="k">proofHash</div><div class="v">${proof}</div>
+        </div>
+
+        <div class="row" style="margin-top:10px;">
+          <button class="btn" data-act="approve" data-id="${id}" data-ms="${missionId}">승인</button>
+          <button class="btn ghost" data-act="reject" data-id="${id}" data-ms="${missionId}">반려</button>
         </div>
       `;
-    }).join("");
+      grid.appendChild(card);
+    }
 
-    wrap.querySelectorAll('button[data-act="select"]').forEach((b) => {
-      b.addEventListener("click", () => {
-        fillForm({
-          key: b.getAttribute("data-key"),
-          id: Number(b.getAttribute("data-id")),
-          missionId: Number(b.getAttribute("data-mission")),
-          proof: b.getAttribute("data-proof"),
-        });
+    // 버튼 핸들러
+    grid.querySelectorAll("button[data-act]").forEach((b) => {
+      b.addEventListener("click", async () => {
+        const act = b.getAttribute("data-act");
+        const id = Number(b.getAttribute("data-id"));
+        const ms = Number(b.getAttribute("data-ms"));
+
+        try {
+          await guardStaff();
+          if (!WALLET.signer) throw new Error("지갑을 연결해 주세요.");
+
+          const a2eW = getA2E(WALLET.signer);
+          toast(`${act === "approve" ? "승인" : "반려"} 전송...`, "info");
+
+          const tx = act === "approve"
+            ? await a2eW.approveClaim(id, ms)
+            : await a2eW.rejectClaim(id, ms);
+
+          await tx.wait();
+
+          toast("처리 완료", "ok");
+          await renderPending();
+        } catch (e) {
+          toast(asUserMessage(e), "error", "처리 실패");
+        }
       });
     });
   }
 
-  async function refresh() {
-    const out = await api("list");
-    if (!out.ok) {
-      setMsg("msg", out.error || "list 실패", "err");
-      return;
-    }
-    setMsg("msg", "pending " + out.count + "개", "ok");
-    render(out.items);
-  }
-
-  async function sync() {
-    setMsg("msg", "sync 중…", "info");
-    const out = await api("sync");
-    if (!out.ok) {
-      setMsg("msg", out.error || "sync 실패", "err");
-      return;
-    }
-    setMsg("msg", `sync 완료 (found ${out.found}, upserted ${out.upserted})`, "ok");
-    await refresh();
-  }
-
-  async function delKey(key) {
-    if (!key) return;
-    await api("del", { key });
-  }
-
-  async function approveOnchain(id, missionId) {
-    if (!window.ethereum) throw new Error("지갑이 없습니다.");
-    if (!window.signer) throw new Error("지갑연결이 필요합니다.");
-
-    const c = new ethers.Contract(A2E_ADDR, A2E_ABI, window.signer);
-    const tx = await c.resolveClaim(id, missionId);
-    return tx.wait();
-  }
-
-  $("btn-refresh")?.addEventListener("click", refresh);
-  $("btn-sync")?.addEventListener("click", sync);
-
-  $("btn-reject")?.addEventListener("click", async () => {
+  window.onWalletConnected = async function () {
     try {
-      const key = $("inId").value && $("inMission").value
-        ? `${Number($("inId").value)}_${Number($("inMission").value)}`
-        : (selected?.key || "");
-
-      if (!key) return setMsg("msg2", "삭제할 key가 없습니다. 목록에서 선택하세요.", "err");
-
-      setMsg("msg2", "삭제 중…", "info");
-      await delKey(key);
-      setMsg("msg2", "삭제 완료", "ok");
-      selected = null;
-      await refresh();
+      await guardStaff();
+      await loadCurrentMissionPrice();
+      await renderPending();
     } catch (e) {
-      setMsg("msg2", e?.message || String(e), "err");
+      toast(asUserMessage(e), "error", "접근 불가");
     }
-  });
+  };
 
-  $("btn-approve")?.addEventListener("click", async () => {
-    try {
-      const id = Number(($("inId").value || "").trim());
-      const missionId = Number(($("inMission").value || "").trim());
-      const key = selected?.key || `${id}_${missionId}`;
-
-      if (!Number.isFinite(id) || !Number.isFinite(missionId)) {
-        return setMsg("msg2", "id/missionId 값이 올바르지 않습니다.", "err");
+  document.addEventListener("DOMContentLoaded", async () => {
+    $("#btnSetPrice")?.addEventListener("click", onSetAdPrice);
+    $("#mId")?.addEventListener("change", loadCurrentMissionPrice);
+    $("#btnRefresh")?.addEventListener("click", async () => {
+      try {
+        await renderPending();
+      } catch (e) {
+        toast(asUserMessage(e), "error");
       }
+    });
 
-      setMsg("msg2", "승인 트랜잭션 전송…", "info");
-
-      const rcpt = await approveOnchain(id, missionId);
-
-      setMsg("msg2", "승인 완료: " + rcpt.transactionHash, "ok");
-
-      // 승인 성공 → pending 삭제
-      await delKey(key);
-
-      selected = null;
-      await refresh();
-    } catch (e) {
-      // 모바일 overflow 방지: 메시지는 이미 wrap 처리됨
-      setMsg("msg2", e?.error?.message || e?.message || String(e), "err");
+    if (WALLET.provider && WALLET.address) {
+      await window.onWalletConnected();
     }
-  });
-
-  // 최초 로딩: sync 1번 + 이후 refresh 주기
-  window.addEventListener("load", async () => {
-    await sync();
-    setInterval(refresh, 15000);
   });
 })();

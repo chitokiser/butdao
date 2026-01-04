@@ -4,81 +4,85 @@ pragma solidity ^0.8.20;
 interface IERC20 {
     function balanceOf(address a) external view returns (uint256);
     function transfer(address to, uint256 v) external returns (bool);
-    function transferFrom(address from, address to, uint256 v) external returns (bool);
+    function transferFrom(address f, address t, uint256 v) external returns (bool);
 }
 
 interface IbutBank {
     function totalfeeup(uint256 amount) external;
 }
 
-/*
-a2e id-slot model (연체 시 owner 교체 가능)
-- 사용자 권한은 "id의 owner"로 체크
-- 회원권, 미션요청, 적립금은 id에 귀속
-- join/payMembership 결제액의 10% 누적 → feeThreshold 이상이면 butbank로 자동 이체
-- ID(구글/카카오 등)는 온체인 저장 금지(오프체인)
-*/
-contract a2e {
-    error NA(); // not admin
-    error NS(); // not staff
-    error Z();  // invalid/zero
-    error TF(); // transfer fail
-    error LV(); // not member
-    error EX(); // expired
-    error AP(); // already pending
-    error NP(); // no pending
-    error CD(); // cooldown
-    error MT(); // invalid mentor
-    error OW(); // not owner
-    error ID(); // invalid id
+contract a2e{
+    // ===== custom errors =====
+    error NA();   // not admin
+    error NS();   // not staff
+    error Z();    // zero/invalid
+    error ID();   // invalid id
+    error OW();   // not owner
+    error EX();   // expired/grace not passed
+    error LV();   // not member
+    error BL();   // blacklisted
+    error CD();   // cooldown
+    error AP();   // already pending
+    error NP();   // not pending
+    error SOLD(); // member over
+    error TF();   // transfer failed
+    error RG();   // bad range
 
     IERC20 public immutable hexToken;
-    IbutBank public butbank;
-    address public admin;
+    IbutBank public immutable butbank;
 
+    address public admin;
     mapping(address => uint8) public staff; // >=5
 
-    // membership
-    uint256 public price; // 월 회비(HEX 18d)
-    uint256 public claimCooldown = 1 days;
-    uint256 public withdrawCooldown = 1 days;
-
-    // 연체 후 owner 교체 가능 유예기간
-    uint256 public seizeGrace = 7 days;
-
-    // mentor
-    uint256 public mentoFee; // 0~100 (%), 기본 10
-
-    // fee to butbank
-    uint256 public constant FEE_BASE = 10000;
-    uint256 public constant FEE_RATE = 1000; // 10%
-    uint256 public feeAcc;
-    uint256 public feeThreshold; // 0이면 자동이체 비활성
-
-    // ids
-    uint256 public nextId = 1;
-    mapping(address => uint256) public idOf; // 주소가 현재 소유한 id(단일 슬롯 모델)
+    // 가입 제한
+    uint256 public totalMember;
 
     struct User {
-        address owner;       // 현재 주인(연체 시 교체됨)
-        address mento;       // 멘토(선택)
-        uint64 level;        // 0 none, 1 member
-        uint64 black;        // 0/1
-        uint64 lastWithdraw; // timestamp
-        uint256 memberUntil; // 만료시각
+        address owner;
+        address mento;
+        uint64  memberUntil;
+        uint64  lastWithdraw;
+        uint8   level;   // 0 none, 1+ member
+        uint8   black;   // 1 black
         uint256 exp;
         uint256 mypay;
         uint256 totalpay;
     }
 
-    mapping(uint256 => User) public users;
+    uint256 public nextId = 1;
+    mapping(uint256 => User) public users;     // id => User
+    mapping(address => uint256) public idOf;   // wallet => id
+
+    // config
+    uint256 public price;
+    uint256 public mentoFee;
+    uint256 public claimCooldown = 1 days;
+    uint256 public withdrawCooldown = 1 days;
+    uint256 public seizeGrace = 7 days;
 
     // missions
-    mapping(uint256 => uint256) public adprice; // missionId -> reward base
-    mapping(uint256 => mapping(uint256 => bool)) public pending;         // id => missionId => pending
-    mapping(uint256 => mapping(uint256 => uint64)) public requestedAt;   // id => missionId => ts
-    mapping(uint256 => mapping(uint256 => bytes32)) public proofHash;    // id => missionId => proof
-    mapping(uint256 => mapping(uint256 => uint256)) public lastClaimAt;  // id => missionId => ts
+    mapping(uint256 => uint256) public adprice;
+
+    // claim status
+    // 0 none, 1 pending, 2 canceled/rejected, 3 approved
+    mapping(uint256 => mapping(uint256 => uint8)) public pending;
+    mapping(uint256 => mapping(uint256 => uint64))  public requestedAt;
+    mapping(uint256 => mapping(uint256 => bytes32)) public proofHash;
+    mapping(uint256 => mapping(uint256 => uint256)) public lastClaimAt;
+
+    // pending list (심사중만)
+    struct PendingKey {
+        uint256 id;
+        uint256 missionId;
+    }
+    PendingKey[] private pendingList;
+    mapping(bytes32 => uint256) private pendingIndex; // index+1
+
+    // fee -> butbank
+    uint256 public feeAcc;
+    uint256 public feeThreshold;
+    uint256 public feeRate = 1000; // 10%
+    uint256 public constant FEE_BASE = 10000;
 
     // reentrancy
     uint256 private _locked = 1;
@@ -93,48 +97,70 @@ contract a2e {
         if (msg.sender != admin) revert NA();
         _;
     }
-
     modifier onlyStaff() {
         if (staff[msg.sender] < 5) revert NS();
         _;
     }
-
     modifier validId(uint256 id_) {
         if (id_ == 0 || id_ >= nextId) revert ID();
         _;
     }
-
     modifier onlyIdOwner(uint256 id_) {
         if (users[id_].owner != msg.sender) revert OW();
         _;
     }
 
     event StaffSet(address indexed a, uint8 lvl);
+    event TotalMemberSet(uint256 totalMember);
     event Joined(uint256 indexed id, address indexed owner, address indexed mento, uint256 paid, uint256 until);
     event Renewed(uint256 indexed id, uint256 months, uint256 paid, uint256 until);
     event OwnerChanged(uint256 indexed id, address indexed oldOwner, address indexed newOwner);
+
     event ClaimReq(uint256 indexed id, uint256 indexed missionId, bytes32 proof);
-    event ClaimRes(uint256 indexed id, uint256 indexed missionId, uint256 reward);
+    event ClaimCancel(uint256 indexed id, uint256 indexed missionId);
+    event ClaimApprove(uint256 indexed id, uint256 indexed missionId, uint256 reward);
+    event ClaimReject(uint256 indexed id, uint256 indexed missionId);
+
     event Withdraw(uint256 indexed id, address indexed to, uint256 amount);
     event FeeMoved(uint256 amount);
 
-    constructor(address _hexToken, address _butbank) {
-        if (_hexToken == address(0) || _butbank == address(0)) revert Z();
-        hexToken = IERC20(_hexToken);
-        butbank = IbutBank(_butbank);
+constructor(address _hexToken, address _butbank) {
+    if (_hexToken == address(0) || _butbank == address(0)) revert Z();
+    hexToken = IERC20(_hexToken);
+    butbank = IbutBank(_butbank);
 
-        admin = msg.sender;
-        staff[msg.sender] = 10;
+    admin = msg.sender;
+    staff[msg.sender] = 10;
 
-        price = 10e18;
-        mentoFee = 10;
-        feeThreshold = 10e18;
-    }
+    price = 10e18;
+    mentoFee = 10;
 
-    // admin ops
-    function transferOwnership(address n) external onlyAdmin {
-        if (n == address(0)) revert Z();
-        admin = n;
+    feeThreshold = 10e18;
+    totalMember = 100;
+
+    // genesis member (id = 1)
+    uint256 id_ = nextId; // nextId is 1
+    users[id_] = User({
+        owner: msg.sender,
+        mento: msg.sender,                     // 셀프 멘토(가장 안전)
+        memberUntil: uint64(block.timestamp + 3650 days), // 충분히 길게
+        lastWithdraw: 0,
+        level: 2,                              // 멘토로 쓰려면 2 권장 (1도 가능)
+        black: 0,
+        exp: 0,
+        mypay: 0,
+        totalpay: 0
+    });
+    idOf[msg.sender] = id_;
+    nextId = id_ + 1; // nextId = 2
+
+    emit Joined(id_, msg.sender, msg.sender, 0, users[id_].memberUntil);
+}
+
+    // ===== admin/config =====
+    function transferOwnership(address newAdmin) external onlyAdmin {
+        if (newAdmin == address(0)) revert Z();
+        admin = newAdmin;
     }
 
     function setStaff(address a, uint8 lvl) external onlyAdmin {
@@ -142,121 +168,147 @@ contract a2e {
         emit StaffSet(a, lvl);
     }
 
-    function setButbank(address b) external onlyAdmin {
-        if (b == address(0)) revert Z();
-        butbank = IbutBank(b);
+    function setTotalMember(uint256 p) external onlyStaff {
+        totalMember = p;
+        emit TotalMemberSet(p);
     }
 
-    function setPrice(uint256 p) external onlyAdmin {
-        if (p == 0) revert Z();
-        price = p;
+    function setPrice(uint256 v) external onlyStaff { price = v; }
+    function setMentoFee(uint256 v) external onlyStaff { mentoFee = v; }
+    function setClaimCooldown(uint256 v) external onlyStaff { claimCooldown = v; }
+    function setWithdrawCooldown(uint256 v) external onlyStaff { withdrawCooldown = v; }
+    function setSeizeGrace(uint256 v) external onlyStaff { seizeGrace = v; }
+
+    function setFeeThreshold(uint256 v) external onlyStaff { feeThreshold = v; }
+    function setFeeRate(uint256 v) external onlyStaff {
+        if (v > FEE_BASE) revert Z();
+        feeRate = v;
     }
 
-    function setMentoFee(uint256 pct) external onlyAdmin {
-        if (pct > 100) revert Z();
-        mentoFee = pct;
-    }
-
-    function setCooldowns(uint256 claimCd, uint256 withdrawCd) external onlyAdmin {
-        claimCooldown = claimCd;
-        withdrawCooldown = withdrawCd;
-    }
-
-    function setFeeThreshold(uint256 th) external onlyAdmin {
-        feeThreshold = th; // 0이면 자동이체 off
-    }
-
-    function setSeizeGrace(uint256 g) external onlyAdmin {
-        seizeGrace = g;
-    }
-
-    function setAdPrice(uint256 missionId, uint256 p) external onlyStaff {
-        adprice[missionId] = p; // 0이면 비활성
-    }
-
-    function setBlacklist(uint256 id_, bool b) external onlyAdmin validId(id_) {
+    function setBlacklist(uint256 id_, bool b) external onlyStaff validId(id_) {
         users[id_].black = b ? 1 : 0;
     }
 
-    // join: 새 id 생성(단일 슬롯 모델: 주소는 1개 id만 소유)
-    function join(address mento) external nonReentrant {
-        if (idOf[msg.sender] != 0) revert Z(); // 이미 id 보유
-        if (mento != address(0)) {
-            uint256 mid = idOf[mento];
-            if (mid == 0) revert MT();
-            if (users[mid].level == 0) revert MT();
-        }
-
-        if (!hexToken.transferFrom(msg.sender, address(this), price)) revert TF();
-
-        uint256 id_ = nextId;
-        nextId = id_ + 1;
-
-        idOf[msg.sender] = id_;
-
-        User storage u = users[id_];
-        u.owner = msg.sender;
-        u.mento = mento;
-        u.level = 1;
-        u.memberUntil = block.timestamp + 30 days;
-
-        _takeFee(price);
-
-        emit Joined(id_, msg.sender, mento, price, u.memberUntil);
+    function setLevel(uint256 id_, uint8 lv) external onlyStaff validId(id_) {
+        users[id_].level = lv;
     }
 
-    // 갱신: id owner만 가능
-    function payMembership(uint256 id_, uint256 months) external nonReentrant validId(id_) onlyIdOwner(id_) {
+    function setAdPrice(uint256 missionId, uint256 v) external onlyStaff {
+        adprice[missionId] = v;
+    }
+
+    // ===== pending list utils =====
+    function _pkey(uint256 id_, uint256 missionId) internal pure returns (bytes32) {
+        return keccak256(abi.encodePacked(id_, missionId));
+    }
+
+    function _addPending(uint256 id_, uint256 missionId) internal {
+        bytes32 k = _pkey(id_, missionId);
+        if (pendingIndex[k] != 0) return;
+        pendingList.push(PendingKey({ id: id_, missionId: missionId }));
+        pendingIndex[k] = pendingList.length; // index+1
+    }
+
+    function _removePending(uint256 id_, uint256 missionId) internal {
+        bytes32 k = _pkey(id_, missionId);
+        uint256 idxPlus = pendingIndex[k];
+        if (idxPlus == 0) return;
+
+        uint256 idx = idxPlus - 1;
+        uint256 last = pendingList.length - 1;
+
+        if (idx != last) {
+            PendingKey memory tail = pendingList[last];
+            pendingList[idx] = tail;
+            pendingIndex[_pkey(tail.id, tail.missionId)] = idx + 1;
+        }
+
+        pendingList.pop();
+        delete pendingIndex[k];
+    }
+
+ // ===== join/renew =====
+function join(address mento) external nonReentrant returns (uint256 id_) {
+    if (idOf[msg.sender] != 0) revert Z();          // 이미 가입
+    if (nextId > totalMember) revert SOLD();        // 정원 초과
+
+    // 멘토 필수 + 기본 검증
+    if (mento == address(0)) revert Z();            // 멘토 주소 필수
+    if (mento == msg.sender) revert Z();            // 자기 자신 멘토 금지
+
+    // 멘토가 "기존회원"인지 확인: idOf[mento]가 있어야 하고, level>0 이어야 함
+    uint256 mid = idOf[mento];
+    if (mid == 0) revert Z();                       // 멘토 미가입
+    User storage mu = users[mid];
+    if (mu.level == 0) revert Z();                  // 멘토가 회원 아님(안전)
+    if (mu.black == 1) revert BL();                 // 블랙 멘토 금지(원하면 제거 가능)
+    if (mu.memberUntil < block.timestamp) revert EX(); // 연체 멘토 금지(원하면 제거 가능)
+
+    uint256 cost = price;
+    if (cost == 0) revert Z();
+    if (!hexToken.transferFrom(msg.sender, address(this), cost)) revert TF();
+
+    id_ = nextId;
+    nextId++;
+
+    users[id_] = User({
+        owner: msg.sender,
+        mento: mento,
+        memberUntil: uint64(block.timestamp + 30 days),
+        lastWithdraw: 0,
+        level: 1,
+        black: 0,
+        exp: 0,
+        mypay: 0,
+        totalpay: 0
+    });
+
+    idOf[msg.sender] = id_;
+    _takeFee(cost);
+
+    emit Joined(id_, msg.sender, mento, cost, users[id_].memberUntil);
+}
+
+
+    function renew(uint256 id_, uint256 months) external nonReentrant validId(id_) onlyIdOwner(id_) {
         if (months == 0) revert Z();
-        User storage u = users[id_];
-        if (u.level == 0) revert LV();
 
         uint256 cost = price * months;
+        if (cost == 0) revert Z();
         if (!hexToken.transferFrom(msg.sender, address(this), cost)) revert TF();
 
+        User storage u = users[id_];
         uint256 base = u.memberUntil;
         if (base < block.timestamp) base = block.timestamp;
-        u.memberUntil = base + (months * 30 days);
+        u.memberUntil = uint64(base + (months * 30 days));
 
         _takeFee(cost);
-
         emit Renewed(id_, months, cost, u.memberUntil);
     }
 
-    // 연체/운영 목적 owner 교체
-    // 조건: memberUntil + seizeGrace < now (연체 유예 지나야)
-    function seizeOwner(uint256 id_, address newOwner) external onlyAdmin validId(id_) {
+    // 연체 + 유예기간 이후 소유권 변경
+    function seizeOwner(uint256 id_, address newOwner) external onlyStaff validId(id_) {
         if (newOwner == address(0)) revert Z();
 
         User storage u = users[id_];
-        if (u.owner == address(0)) revert Z();
-
-        // 연체 조건
-        if (block.timestamp <= u.memberUntil + seizeGrace) revert EX();
-
         address old = u.owner;
+        if (old == address(0)) revert Z();
 
-        // 기존 소유자 address->id 연결 제거(단일 슬롯 모델)
-        if (idOf[old] == id_) {
-            idOf[old] = 0;
-        }
-
-        // 새 소유자가 이미 다른 id를 가지고 있으면 불가(단일 슬롯 유지)
+        if (block.timestamp <= uint256(u.memberUntil) + seizeGrace) revert EX();
         if (idOf[newOwner] != 0) revert Z();
 
+        if (idOf[old] == id_) idOf[old] = 0;
         u.owner = newOwner;
         idOf[newOwner] = id_;
 
         emit OwnerChanged(id_, old, newOwner);
     }
 
-    // 유저 자발적 양도(운영상 필요하면)
     function transferId(uint256 id_, address newOwner) external validId(id_) onlyIdOwner(id_) {
         if (newOwner == address(0)) revert Z();
         if (idOf[newOwner] != 0) revert Z();
 
         address old = users[id_].owner;
-
         users[id_].owner = newOwner;
         idOf[old] = 0;
         idOf[newOwner] = id_;
@@ -264,63 +316,77 @@ contract a2e {
         emit OwnerChanged(id_, old, newOwner);
     }
 
-    // claim: id owner만 가능
+    // ===== claim/approve/reject =====
     function claim(uint256 id_, uint256 missionId, bytes32 proof) external validId(id_) onlyIdOwner(id_) {
         User storage u = users[id_];
-        if (u.black == 1) revert Z();
+        if (u.black == 1) revert BL();
         if (u.level == 0) revert LV();
         if (u.memberUntil < block.timestamp) revert EX();
+
+        uint256 base = adprice[missionId];
+        if (base == 0) revert Z();
 
         uint256 last = lastClaimAt[id_][missionId];
         if (block.timestamp < last + claimCooldown) revert CD();
 
-        if (pending[id_][missionId]) revert AP();
-        if (adprice[missionId] == 0) revert Z();
+        if (pending[id_][missionId] == 1) revert AP();
 
-        pending[id_][missionId] = true;
+        pending[id_][missionId] = 1;
         requestedAt[id_][missionId] = uint64(block.timestamp);
         proofHash[id_][missionId] = proof;
+
+        _addPending(id_, missionId);
 
         emit ClaimReq(id_, missionId, proof);
     }
 
     function cancelClaim(uint256 id_, uint256 missionId) external validId(id_) onlyIdOwner(id_) {
-        if (!pending[id_][missionId]) revert NP();
+        if (pending[id_][missionId] != 1) revert NP();
 
-        pending[id_][missionId] = false;
+        pending[id_][missionId] = 2;
         lastClaimAt[id_][missionId] = block.timestamp;
+        _removePending(id_, missionId);
 
-        delete requestedAt[id_][missionId];
-        delete proofHash[id_][missionId];
+        emit ClaimCancel(id_, missionId);
     }
 
-    // staff 승인
-    function resolveClaim(uint256 id_, uint256 missionId) external onlyStaff validId(id_) {
-        if (!pending[id_][missionId]) revert NP();
+    function approveClaim(uint256 id_, uint256 missionId) external onlyStaff validId(id_) {
+        if (pending[id_][missionId] != 1) revert NP();
 
         uint256 base = adprice[missionId];
         if (base == 0) revert Z();
 
-        uint256 reward = base;
+        uint256 grade = users[id_].level;
+        uint256 reward = (base * grade) / 10;
 
         users[id_].mypay += reward;
         users[id_].exp += reward / 1e16;
 
-        pending[id_][missionId] = false;
+        pending[id_][missionId] = 3;
         lastClaimAt[id_][missionId] = block.timestamp;
 
-        delete requestedAt[id_][missionId];
-        delete proofHash[id_][missionId];
+        _removePending(id_, missionId);
 
-        emit ClaimRes(id_, missionId, reward);
+        emit ClaimApprove(id_, missionId, reward);
     }
 
-    // withdraw: id owner만 가능, 출금은 "현재 owner"에게 나감
+    function rejectClaim(uint256 id_, uint256 missionId) external onlyStaff validId(id_) {
+        if (pending[id_][missionId] != 1) revert NP();
+
+        pending[id_][missionId] = 2;
+        lastClaimAt[id_][missionId] = block.timestamp;
+
+        _removePending(id_, missionId);
+
+        emit ClaimReject(id_, missionId);
+    }
+
+    // ===== withdraw =====
     function withdraw(uint256 id_) external nonReentrant validId(id_) onlyIdOwner(id_) {
         User storage u = users[id_];
+        if (u.black == 1) revert BL();
         if (u.level == 0) revert LV();
         if (u.memberUntil < block.timestamp) revert EX();
-        if (u.black == 1) revert Z();
 
         uint256 lastW = u.lastWithdraw;
         if (block.timestamp < lastW + withdrawCooldown) revert CD();
@@ -332,11 +398,10 @@ contract a2e {
         u.totalpay += amount;
         u.lastWithdraw = uint64(block.timestamp);
 
-        // 멘토 수당: 출금액의 mentoFee%를 멘토 id의 mypay로 적립
         address mento = u.mento;
         if (mento != address(0) && mentoFee != 0) {
             uint256 mid = idOf[mento];
-            if (mid != 0 && users[mid].level != 0) {
+            if (mid != 0 && users[mid].level != 0 && users[mid].black == 0) {
                 uint256 cut = (amount * mentoFee) / 100;
                 users[mid].mypay += cut;
             }
@@ -346,14 +411,17 @@ contract a2e {
         emit Withdraw(id_, msg.sender, amount);
     }
 
+    // ===== fee =====
     function _takeFee(uint256 gross) internal {
-        feeAcc += (gross * FEE_RATE) / FEE_BASE;
+        if (feeRate == 0) return;
+        feeAcc += (gross * feeRate) / FEE_BASE;
         _flushFee();
     }
 
     function _flushFee() internal {
         uint256 th = feeThreshold;
         if (th == 0) return;
+
         uint256 acc = feeAcc;
         if (acc < th) return;
 
@@ -364,11 +432,74 @@ contract a2e {
         emit FeeMoved(acc);
     }
 
-    function flushFee() external onlyAdmin nonReentrant {
+    function flushFee() external onlyStaff nonReentrant {
         _flushFee();
     }
 
-    // view helpers
+    // ===== admin 업무용 get =====
+    function pendingCount() external view returns (uint256) {
+        return pendingList.length;
+    }
+
+function pendingAt(uint256 index)
+    external
+    view
+    onlyStaff
+    returns (
+        uint256 id,
+        uint256 missionId,
+        address owner,
+        uint64 reqAt,
+        bytes32 proof
+    )
+{
+    require(index < pendingList.length, "OOB");
+    PendingKey memory pk = pendingList[index];
+    id = pk.id;
+    missionId = pk.missionId;
+    owner = users[id].owner;
+    reqAt = requestedAt[id][missionId];
+    proof = proofHash[id][missionId];
+}
+
+
+    // ===== 연체자 get =====
+    function getDelinquents(uint256 startId, uint256 endId)
+        external
+        view
+        onlyStaff
+        returns (
+            uint256[] memory ids,
+            address[] memory owners,
+            uint64[] memory memberUntil
+        )
+    {
+        if (startId == 0 || endId < startId) revert RG();
+        if (endId >= nextId) endId = nextId - 1;
+
+        uint256 c = 0;
+        for (uint256 id_ = startId; id_ <= endId; id_++) {
+            User storage u = users[id_];
+            if (u.owner != address(0) && u.level != 0 && u.memberUntil < block.timestamp) c++;
+        }
+
+        ids = new uint256[](c);
+        owners = new address[](c);
+        memberUntil = new uint64[](c);
+
+        uint256 k = 0;
+        for (uint256 id_ = startId; id_ <= endId; id_++) {
+            User storage u = users[id_];
+            if (u.owner != address(0) && u.level != 0 && u.memberUntil < block.timestamp) {
+                ids[k] = id_;
+                owners[k] = u.owner;
+                memberUntil[k] = u.memberUntil;
+                k++;
+            }
+        }
+    }
+
+    // ===== views =====
     function myInfo(uint256 id_)
         external
         view
@@ -393,7 +524,7 @@ contract a2e {
         view
         validId(id_)
         returns (
-            bool isPending,
+            uint8 status,
             uint64 reqAt,
             bytes32 proof,
             uint256 lastAt,
@@ -407,5 +538,9 @@ contract a2e {
             lastClaimAt[id_][missionId],
             adprice[missionId]
         );
+    }
+
+    function contractHexBalance() external view returns (uint256) {
+        return hexToken.balanceOf(address(this));
     }
 }

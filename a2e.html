@@ -2,115 +2,97 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>PawDAO - A2E</title>
+  <title>PawDAO · A2E</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
   <link rel="icon" href="/assets/img/favicon.png">
   <link rel="shortcut icon" href="/assets/img/favicon.png">
+
   <link rel="stylesheet" href="/assets/css/style.css" />
+  <link rel="stylesheet" href="/assets/css/a2e.css" />
 </head>
 <body>
 
   <div id="include-head"></div>
 
-  <main id="content" style="padding:16px;max-width:980px;margin:0 auto;">
-    <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;">
-      <div>
-        <div style="font-size:20px;">A2E 광고 미션</div>
-        <div style="font-size:13px;opacity:.85;margin-top:6px;">
-          멤버 가입 후 미션을 청구하면 관리자가 proof를 확인하여 승인합니다.
-        </div>
-      </div>
-      <a class="btn" href="/mypage.html" style="text-decoration:none;display:inline-flex;align-items:center;">마이페이지</a>
+  <main class="a2e-wrap">
+    <div class="h1">A2E 광고 미션</div>
+    <div class="sub">
+      멤버는 미션 수행 후 청구할 수 있고, 관리자가 승인하면 [승인완료]로 바뀝니다.
     </div>
 
-    <div id="a2e_msg" class="msgbox" style="display:none;"></div>
+    <div class="grid two">
+      <section class="card">
+        <div class="title">내 계정 상태</div>
 
-    <div style="margin-top:14px;padding:12px;border:1px solid #222;border-radius:14px;">
-      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
-        <div style="font-size:13px;opacity:.85;">내 주소</div>
-        <div id="a2e_me" style="font-size:13px;overflow-wrap:anywhere;"></div>
-      </div>
+        <div class="kv">
+          <div class="k">지갑</div><div class="v" id="meWallet">-</div>
+          <div class="k">내 ID</div><div class="v" id="meId">-</div>
+          <div class="k">레벨</div><div class="v" id="meLevel">-</div>
+          <div class="k">만료일</div><div class="v" id="meUntil">-</div>
+          <div class="k">출금가능</div><div class="v" id="mePay">-</div>
+          <div class="k">컨트랙트 잔고</div><div class="v" id="poolBal">-</div>
+        </div>
 
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px;">
-        <div style="padding:10px;border:1px solid #222;border-radius:12px;">
-          <div style="font-size:12px;opacity:.8;">내 ID</div>
-          <div id="a2e_myId" style="font-size:18px;margin-top:6px;">-</div>
+        <div class="row" style="margin-top:12px;">
+          <button class="btn" id="btnWithdraw">출금하기</button>
+          <a class="btn ghost" href="/mypage.html">마이페이지</a>
         </div>
-        <div style="padding:10px;border:1px solid #222;border-radius:12px;">
-          <div style="font-size:12px;opacity:.8;">회원 만료</div>
-          <div id="a2e_until" style="font-size:14px;margin-top:6px;">-</div>
-        </div>
-      </div>
+      </section>
 
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:10px;">
-        <div style="padding:10px;border:1px solid #222;border-radius:12px;">
-          <div style="font-size:12px;opacity:.8;">월 회비(HEX)</div>
-          <div id="a2e_price" style="font-size:14px;margin-top:6px;">-</div>
-        </div>
-        <div style="padding:10px;border:1px solid #222;border-radius:12px;">
-          <div style="font-size:12px;opacity:.8;">수수료 누적</div>
-          <div id="a2e_feeAcc" style="font-size:14px;margin-top:6px;">-</div>
-        </div>
-        <div style="padding:10px;border:1px solid #222;border-radius:12px;">
-          <div style="font-size:12px;opacity:.8;">자동이체 기준</div>
-          <div id="a2e_feeTh" style="font-size:14px;margin-top:6px;">-</div>
-        </div>
-      </div>
+      <section class="card">
+        <div class="title">멤버 가입/갱신</div>
 
-      <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
-        <div style="flex:1;min-width:220px;">
-          <div style="font-size:13px;opacity:.85;margin-bottom:6px;">멘토 주소(선택)</div>
-          <input id="a2e_mentor" placeholder="비우면 멘토 없이 가입"
-                 style="width:100%;padding:10px;border-radius:10px;border:1px solid #222;background:#0e0e0e;color:#fff;">
+        <div class="sub" style="margin-top:6px;">
+          가입은 반드시 기존회원 멘토 주소가 필요합니다. 회비는 매달 갱신합니다.
         </div>
-        <button id="a2e_joinBtn" class="btn" style="min-width:160px;">가입(Join)</button>
-      </div>
-      <div id="a2e_joinHint" style="margin-top:8px;font-size:13px;opacity:.85;"></div>
+
+        <div style="margin-top:10px;">
+          <div class="sub">멘토 주소</div>
+          <input class="inp" id="inpMento" placeholder="0x..." />
+        </div>
+
+        <div class="row" style="margin-top:10px;">
+          <button class="btn" id="btnJoin">가입(Join)</button>
+          <div style="flex:1"></div>
+        </div>
+
+        <div style="margin-top:10px;">
+          <div class="sub">갱신 개월수</div>
+          <input class="inp" id="inpMonths" type="number" min="1" value="1" />
+        </div>
+
+        <div class="row" style="margin-top:10px;">
+          <button class="btn" id="btnRenew">갱신(Renew)</button>
+          <span class="badge" id="cfgPrice">회비: -</span>
+        </div>
+      </section>
     </div>
 
-    <div style="margin-top:18px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
-        <div style="font-size:18px;">광고 미션 리스트</div>
-        <button id="a2e_refreshMissions" class="btn">새로고침</button>
+    <section class="card" style="margin-top:12px;">
+      <div class="row">
+        <div class="title">광고 미션 목록</div>
+        <span class="badge" id="staffBadge" style="display:none;">관리자/스태프</span>
+      </div>
+      <div class="sub" style="margin-top:6px;">
+        각 카드에 미션 설명/가이드/예시 proof 포맷을 표시합니다. proof는 텍스트를 입력하면 bytes32로 해시되어 전송됩니다.
       </div>
 
-      <div id="missionGrid" style="margin-top:12px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;"></div>
-
-      <div style="margin-top:16px;padding:12px;border:1px solid #222;border-radius:14px;">
-        <div style="font-size:16px;margin-bottom:10px;">미션 청구</div>
-
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-          <div>
-            <div style="font-size:13px;opacity:.85;margin-bottom:6px;">미션 ID</div>
-            <input id="claim_missionId" type="number" min="1" placeholder="예: 1"
-                   style="width:100%;padding:10px;border-radius:10px;border:1px solid #222;background:#0e0e0e;color:#fff;">
-          </div>
-          <div>
-            <div style="font-size:13px;opacity:.85;margin-bottom:6px;">활동증명 (URL/ID/텍스트)</div>
-            <input id="claim_proof" placeholder="여기에 링크나 식별값 입력"
-                   style="width:100%;padding:10px;border-radius:10px;border:1px solid #222;background:#0e0e0e;color:#fff;">
-          </div>
-        </div>
-
-        <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;">
-          <button id="btn_claim" class="btn" style="min-width:180px;">청구하기</button>
-          <button id="btn_cancelClaim" class="btn" style="min-width:180px;">청구 취소</button>
-        </div>
-
-        <div id="claim_hint" style="margin-top:10px;font-size:13px;opacity:.9;white-space:pre-wrap;"></div>
-      </div>
-    </div>
+      <div class="grid" id="missionGrid" style="margin-top:12px;"></div>
+    </section>
   </main>
 
   <div id="include-footer"></div>
 
+  <div class="toast" id="toast">
+    <div class="t" id="toastTitle">알림</div>
+    <div class="m" id="toastMsg"></div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <script src="/assets/js/config.js"></script>
   <script src="/assets/js/include.js"></script>
   <script src="/assets/js/wallet.js"></script>
-
-  <script src="/assets/js/missions.js"></script>
-  <script src="/assets/js/a2e_id.js"></script>
   <script src="/assets/js/a2e.js"></script>
-
 </body>
 </html>

@@ -2,135 +2,71 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>PAWDAO · 관리자</title>
+  <title>PawDAO · 관리자</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <link rel="icon" href="/assets/img/favicon.png" />
-  <link rel="shortcut icon" href="/assets/img/favicon.png" />
+  <link rel="icon" href="/assets/img/favicon.png">
+  <link rel="shortcut icon" href="/assets/img/favicon.png">
+
   <link rel="stylesheet" href="/assets/css/style.css" />
-
-  <style>
-    :root{
-      --card-bg: rgba(255,255,255,0.06);
-      --card-bd: rgba(255,255,255,0.10);
-      --muted: rgba(255,255,255,0.65);
-      --text: rgba(255,255,255,0.92);
-    }
-    main{ padding: 14px 14px 40px; max-width: 980px; margin: 0 auto; color: var(--text); }
-    .top-title{ font-size: 18px; margin: 10px 0 10px; }
-    .sub{ color: var(--muted); font-size: 13px; line-height: 1.5; margin-bottom: 12px; }
-    .grid{ display:grid; grid-template-columns: 1fr; gap: 12px; }
-    @media (min-width: 900px){ .grid{ grid-template-columns: 1fr 1fr; } }
-    .card{ background: var(--card-bg); border: 1px solid var(--card-bd); border-radius: 16px; padding: 14px; }
-    .row{ display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap; }
-    .btn{
-      appearance:none; border:0; border-radius: 12px; padding: 10px 12px;
-      font-size:14px; cursor:pointer; background:#ffffff; color:#000;
-      min-height:40px; box-shadow:0 6px 14px rgba(0,0,0,0.25);
-    }
-    .btn.small{ padding:8px 10px; font-size:13px; border-radius:10px; min-height:36px; }
-    .btn.secondary{ background: rgba(255,255,255,0.85); }
-    .msg{
-      margin-top:10px; border: 1px solid var(--card-bd); border-radius: 12px;
-      padding: 10px 12px; font-size: 13px; line-height: 1.45;
-      background: rgba(0,0,0,0.25);
-      word-break: break-word; overflow-wrap:anywhere; max-height: 140px; overflow:auto; white-space:pre-wrap;
-    }
-    .msg.ok{ border-color: rgba(37,211,102,0.35); }
-    .msg.err{ border-color: rgba(255,92,92,0.35); }
-    .msg.info{ border-color: rgba(72,167,255,0.35); }
-    .list{ display:flex; flex-direction:column; gap:10px; margin-top: 12px; }
-    .item{ border:1px solid var(--card-bd); background: rgba(0,0,0,0.18); border-radius: 14px; padding: 12px; }
-    .muted{ color: var(--muted); font-size: 12px; }
-    .addr{ font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12.5px; margin-top:6px; word-break:break-word; overflow-wrap:anywhere; }
-    .kv{ margin-top: 6px; display:grid; grid-template-columns: 92px 1fr; gap:6px 10px; font-size: 12.5px; }
-    .kv .k{ color: var(--muted); }
-    .kv .v{ word-break:break-word; overflow-wrap:anywhere; font-family: ui-monospace, Menlo, Consolas, monospace; }
-    .empty{ color: var(--muted); font-size: 13px; padding: 12px; border: 1px dashed rgba(255,255,255,0.18); border-radius: 14px; text-align:center; }
-    .input{
-      width:100%; box-sizing:border-box; border:1px solid var(--card-bd);
-      background: rgba(0,0,0,0.25); color: rgba(255,255,255,0.92);
-      padding: 10px 12px; border-radius: 12px; outline:none; font-size:14px;
-    }
-    .input::placeholder{ color: rgba(255,255,255,0.45); }
-    .field{ display:flex; flex-direction:column; gap:6px; margin-top: 10px; }
-    .label{ font-size:12px; color: var(--muted); }
-    .hr{ height:1px; background: rgba(255,255,255,0.10); margin: 12px 0; }
-  </style>
+  <link rel="stylesheet" href="/assets/css/a2e.css" />
 </head>
-
 <body>
+
   <div id="include-head"></div>
 
-  <main>
-    <div class="top-title">관리자/스태프 모드</div>
+  <main class="a2e-wrap">
+    <div class="h1">관리자</div>
     <div class="sub">
-      pending 자동 목록은 Netlify Functions + Netlify Blobs 캐시 기반입니다.<br/>
-      sync는 최근 블록 이벤트를 읽어 pending을 갱신합니다.
+      스태프(권한 >=5) 지갑만 접근 가능. 심사중(pending=1) 요청을 자동으로 모두 나열합니다.
     </div>
 
-    <div class="grid">
-      <section class="card">
-        <div class="row">
-          <div style="font-size:15px;">pending 자동 목록</div>
-          <div class="row" style="justify-content:flex-end;">
-            <button class="btn small" id="btn-sync" type="button">sync</button>
-            <button class="btn small secondary" id="btn-refresh" type="button">refresh</button>
-          </div>
+    <section class="card" style="margin-top:12px;">
+      <div class="title">미션 단가 등록</div>
+      <div class="sub">컨트랙트 setAdPrice(missionId, price) 호출</div>
+
+      <div class="grid two" style="margin-top:10px;">
+        <div>
+          <div class="sub">missionId</div>
+          <input class="inp" id="mId" type="number" min="1" value="1"/>
         </div>
-
-        <div id="msg" class="msg info">대기중…</div>
-
-        <div class="hr"></div>
-
-        <div id="pending-list" class="list">
-          <div class="empty">로딩중…</div>
+        <div>
+          <div class="sub">price (HEX, 18dec)</div>
+          <input class="inp" id="mPrice" placeholder="예: 1.5"/>
         </div>
-      </section>
+      </div>
 
-      <section class="card">
-        <div style="font-size:15px;">승인(온체인)</div>
-        <div class="muted" style="margin-top:6px;">
-          왼쪽 목록에서 항목을 선택하면 자동으로 입력칸이 채워집니다.
-        </div>
+      <div class="row" style="margin-top:10px;">
+        <button class="btn" id="btnSetPrice">저장</button>
+        <span class="badge" id="curPrice">현재 단가: -</span>
+      </div>
+    </section>
 
-        <div class="field">
-          <div class="label">id (user slot id)</div>
-          <input class="input" id="inId" placeholder="예: 12" inputmode="numeric"/>
-        </div>
+    <section class="card" style="margin-top:12px;">
+      <div class="row">
+        <div class="title">심사중 요청 목록</div>
+        <button class="btn small" id="btnRefresh">새로고침</button>
+      </div>
 
-        <div class="field">
-          <div class="label">missionId</div>
-          <input class="input" id="inMission" placeholder="예: 2" inputmode="numeric"/>
-        </div>
+      <div class="sub" style="margin-top:6px;">
+        approveClaim(id, missionId) / rejectClaim(id, missionId)
+      </div>
 
-        <div class="field">
-          <div class="label">proof (선택)</div>
-          <input class="input" id="inProof" placeholder="0x..."/>
-        </div>
-
-        <div class="row" style="margin-top:12px;">
-          <button class="btn secondary" id="btn-approve" type="button">승인 실행</button>
-          <button class="btn secondary" id="btn-reject" type="button">거절(삭제)</button>
-        </div>
-
-        <div id="msg2" class="msg info">지갑 연결 후 승인 가능</div>
-
-        <div class="hr"></div>
-
-        <div class="muted">
-          승인 성공 시 pending 항목은 자동 삭제됩니다(Blobs del).
-        </div>
-      </section>
-    </div>
+      <div class="grid" id="pendingGrid" style="margin-top:12px;"></div>
+    </section>
   </main>
 
   <div id="include-footer"></div>
 
+  <div class="toast" id="toast">
+    <div class="t" id="toastTitle">알림</div>
+    <div class="m" id="toastMsg"></div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <script src="/assets/js/config.js"></script>
   <script src="/assets/js/include.js"></script>
   <script src="/assets/js/wallet.js"></script>
-
   <script src="/assets/js/admin.js"></script>
 </body>
 </html>

@@ -8,14 +8,15 @@
     </div>
 
     <nav class="header-nav">
-      <a class="nav-link" href="/index.html">Home</a>
-      <a class="nav-link" href="/mypage.html">마이페이지</a>
-      <a class="nav-link" href="/a2e.html">A2E</a>
+      <a href="/a2e.html">A2E</a>
+      <a href="/mypage.html">마이페이지</a>
+      <a href="/admin.html">관리자</a>
     </nav>
 
     <div class="header-wallet">
       <span id="hex-balance">HEX잔고: -</span>
-      <button id="wallet-btn" onclick="connectWallet()">지갑연결</button>
+      <span id="wallet-addr" class="sub" style="margin-left:10px;">-</span>
+      <button class="btn" id="wallet-btn" onclick="connectWallet()">지갑연결</button>
     </div>
 
   </div>
