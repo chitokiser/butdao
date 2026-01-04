@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>광고 의뢰</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <link rel="icon" href="/assets/img/favicon.png">
+  <link rel="shortcut icon" href="/assets/img/favicon.png">
+
+  <link rel="stylesheet" href="/assets/css/style.css" />
+  <link rel="stylesheet" href="/assets/css/a2e.css" />
+
+  <style>
+    .page-wrap { max-width: 1080px; margin: 0 auto; padding: 24px 16px 80px; }
+    .h1 { font-size: 28px; font-weight: 800; }
+    .sub { opacity: .8; margin-top: 6px; }
+    .card { border-radius: 18px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); padding: 18px; }
+    .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .btn { border: 0; border-radius: 14px; padding: 10px 14px; cursor: pointer; background: #7c5cff; color: #fff; font-weight: 700; }
+    .btn.ghost { background: rgba(255,255,255,.08); }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+    table { width: 100%; border-collapse: collapse; overflow: hidden; border-radius: 14px; }
+    th, td { padding: 12px 10px; border-bottom: 1px solid rgba(255,255,255,.08); vertical-align: top; }
+    th { text-align: left; opacity: .85; font-weight: 700; background: rgba(255,255,255,.04); }
+    tr:last-child td { border-bottom: 0; }
+    .muted { opacity: .7; }
+    .chip { display:inline-flex; align-items:center; gap:6px; padding: 2px 10px; border-radius: 999px; background: rgba(255,255,255,.08); font-size: 12px; }
+    .price { font-weight: 800; }
+    .right { text-align: right; }
+
+    .grid2 { display:grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    @media (max-width: 860px) { .grid2 { grid-template-columns: 1fr; } }
+
+    /* modal */
+    .modal-backdrop {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.6);
+      display: none;
+      align-items: center; justify-content: center;
+      padding: 18px;
+      z-index: 9999;
+    }
+    .modal {
+      width: min(820px, 100%);
+      border-radius: 18px;
+      background: rgba(20,22,30,.98);
+      border: 1px solid rgba(255,255,255,.12);
+      box-shadow: 0 20px 60px rgba(0,0,0,.6);
+      padding: 18px;
+    }
+    .modal h3 { margin: 0; font-size: 18px; }
+    .modal .close { margin-left:auto; }
+    .field { margin-top: 12px; }
+    .label { font-size: 13px; opacity:.85; margin-bottom: 6px; }
+    input, textarea, select {
+      width: 100%;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.06);
+      color: inherit;
+      padding: 10px 12px;
+      outline: none;
+    }
+    textarea { min-height: 90px; resize: vertical; }
+    .hint { margin-top: 8px; font-size: 12px; opacity: .75; }
+    .actions { margin-top: 14px; display:flex; gap: 10px; align-items: center; justify-content: flex-end; flex-wrap: wrap; }
+    .ok { color: #77ffa6; }
+    .bad { color: #ff7a7a; }
+  </style>
+</head>
+<body>
+  <div id="include-head"></div>
+
+  <div class="page-wrap">
+    <div class="h1">가격 / 주문</div>
+    <div class="sub">단위:HEX</div>
+
+    <div class="card" style="margin-top:14px;">
+      <div class="row">
+   
+      </div>
+
+      <div style="margin-top:12px; overflow:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:70px;">ID</th>
+              <th style="min-width:180px;">서비스 항목</th>
+              <th style="min-width:240px;">기본 제공</th>
+              <th style="min-width:240px;">필수 제공사항</th>
+              <th style="width:120px;" class="right">가격(HEX)</th>
+              <th style="width:120px;" class="right">주문</th>
+            </tr>
+          </thead>
+          <tbody id="svcBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="grid2" style="margin-top:14px;">
+      <div class="card">
+        <div class="row">
+          <div style="font-weight:800;">진행 프로세스</div>
+          <div class="muted">문의 → 제안 → 세팅 → 집행</div>
+        </div>
+        <div style="margin-top:12px; display:grid; gap:10px;">
+          <div class="chip">1 상담 · 전화/카톡/텔레그램</div>
+          <div class="chip">2 제안 · 시장/경쟁/키워드 분석</div>
+          <div class="chip">3 세팅 · 계정 연동, 픽셀 설치</div>
+          <div class="chip">4 집행 · 멀티채널 광고 운영</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div style="font-weight:800;">안내</div>
+        <div class="muted" style="margin-top:8px;">
+          주문 시 입력한 “추가 참고 링크(URL)”와 “필수 제공사항”을 기준으로 작업 범위를 확인합니다.<br/>
+          결제 연동을 추가하려면, 주문 저장 후 결제 트랜잭션 해시를 업데이트하는 방식이 가장 단순합니다.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- modal -->
+  <div class="modal-backdrop" id="modalBack">
+    <div class="modal">
+      <div class="row">
+        <h3 id="mTitle">주문 요청</h3>
+        <button class="btn ghost close" id="btnClose">닫기</button>
+      </div>
+
+      <div class="muted" id="mDesc" style="margin-top:6px;">-</div>
+
+      <div class="field">
+        <div class="label">연락처 (텔레그램/카톡)</div>
+        <input id="mContact" placeholder="예:  @telegram / 카톡ID" />
+      </div>
+
+      <div class="field">
+        <div class="label">광고목적</div>
+        <textarea id="mRequired" placeholder="상품홍보,가게홍보,조회수 증가등"></textarea>
+      </div>
+
+      <div class="field">
+        <div class="label">웹사이트 또는 참고할 만한내용</div>
+        <input id="mLink" placeholder="웹사이트 또는 상품정보 URL" />
+      </div>
+
+      <div class="field">
+        <div class="label">메모(선택)</div>
+        <textarea id="mMemo" placeholder="원하는 콘셉트, 광고기간등"></textarea>
+      </div>
+
+      <div class="hint">주문을 저장한 뒤 결제를 진행하는 흐름으로 구성되어 있습니다</div>
+
+      <div class="actions">
+        <div id="mStatus" class="muted"></div>
+        <button class="btn" id="btnSubmit">블록체인 결제 및 주문</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="include-footer"></div>
+
+  <script src="/assets/js/include.js"></script>
+
+  <!-- Firebase (모듈) -->
+  <script type="module" src="/assets/js/ad_request.js"></script>
+  
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <script src="/assets/js/include.js"></script>
+    <script src="/assets/js/config.js"></script>
+  <script src="/assets/js/wallet.js"></script>
+</body>
+</html>

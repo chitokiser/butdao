@@ -56,6 +56,7 @@
     return lv * 64000;
   }
 
+  // 수정된 버전: 1% 미만도 보이게 + 소수 퍼센트 표시
   function setXpBar(exp, needTotal) {
     const xpWrap = $("#xpWrap");
     const meExp = $("#meExp");
@@ -67,21 +68,31 @@
 
     if (!xpWrap || !meExp || !meNeedTotal || !meNeedExp || !meExpPct || !meExpFill) return;
 
-    if (!needTotal || needTotal <= 0) {
+    const need = Number(needTotal || 0);
+    const now = Number(exp || 0);
+
+    if (!need || need <= 0) {
       xpWrap.style.display = "none";
       return;
     }
 
     xpWrap.style.display = "";
-    meExp.textContent = fmtNum(exp);
-    meNeedTotal.textContent = fmtNum(needTotal);
+    meExp.textContent = fmtNum(now);
+    meNeedTotal.textContent = fmtNum(need);
 
-    const left = Math.max(0, needTotal - exp);
+    const left = Math.max(0, need - now);
     meNeedExp.textContent = fmtNum(left);
 
-    const pct = Math.max(0, Math.min(100, Math.floor((exp / needTotal) * 100)));
-    meExpPct.textContent = String(pct);
-    meExpFill.style.width = pct + "%";
+    // 퍼센트: 소수 2자리 표시
+    const pctRaw = (now / need) * 100; // 0.39 같은 값
+    const pctText = Math.max(0, Math.min(100, pctRaw)).toFixed(2);
+
+    // bar: exp가 0보다 크면 최소 1%는 보이게
+    const pctForBar = now > 0 ? Math.max(1, pctRaw) : 0;
+    const pctClamped = Math.max(0, Math.min(100, pctForBar));
+
+    meExpPct.textContent = String(pctText); // 예: 0.39
+    meExpFill.style.width = pctClamped + "%";
 
     if (xpRuleHint) xpRuleHint.textContent = "기준: 레벨 × 64,000";
   }

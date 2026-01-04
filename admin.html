@@ -157,7 +157,33 @@
         </div>
 
         <div id="msgPending" class="msgbox"></div>
+      
+      
       </section>
+ 
+<section class="card" style="margin-top:14px;">
+  <div class="row" style="justify-content:space-between; align-items:center;">
+    <div>
+      <div class="title">광고 주문 현황</div>
+      <div class="sub">결제 영수증(opbnbscan) 포함</div>
+    </div>
+    <div class="row" style="gap:8px;">
+      <button class="btn ghost" id="btnOrdersRefresh">새로고침</button>
+      <select id="ordersLimit" style="height:38px;">
+        <option value="20">20개</option>
+        <option value="50" selected>50개</option>
+        <option value="100">100개</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="hr"></div>
+
+  <div id="ordersMsg" class="muted"></div>
+  <div id="ordersList" class="list" style="margin-top:10px;"></div>
+</section>
+
+
     </div>
   </main>
 
