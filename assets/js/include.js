@@ -12,3 +12,12 @@
     load("include-footer", "/footer.html"),
   ]);
 })();
+
+  (() => {
+    const path = location.pathname.split("/").pop();
+    document.querySelectorAll(".header-nav a").forEach(a => {
+      if (a.getAttribute("href").includes(path)) {
+        a.classList.add("active");
+      }
+    });
+  })();

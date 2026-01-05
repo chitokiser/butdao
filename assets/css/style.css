@@ -531,3 +531,77 @@ main.a2e-wrap{
   word-break: break-word;
   overflow-wrap: anywhere;
 }
+/* ===============================
+   HEADER NAV (FINAL)
+   - HTML 구조 그대로 사용:
+     <nav class="header-nav"><a ...>...</a></nav>
+   - 버튼형 네비 + 현재페이지 active 지원
+=============================== */
+
+#header {
+  background: linear-gradient(90deg, #0f1220, #14172a);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.header-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.header-nav {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.header-nav a {
+  position: relative;
+  padding: 8px 14px;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+  border-radius: 12px;
+
+  /* 버튼 느낌 */
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.10);
+
+  /* 글자 */
+  color: rgba(255,255,255,0.88);
+
+  transition: transform .15s ease, background .25s ease, box-shadow .25s ease, border-color .25s ease, color .25s ease;
+}
+
+.header-nav a:hover {
+  color: #fff;
+  transform: translateY(-1px);
+  background: linear-gradient(135deg, rgba(79,107,255,0.85), rgba(111,140,255,0.85));
+  border-color: rgba(111,140,255,0.65);
+  box-shadow: 0 0 0 1px rgba(111,140,255,0.35), 0 10px 22px rgba(79,107,255,0.25);
+}
+
+/* 현재 페이지 강조(아래 JS가 active 붙임) */
+.header-nav a.active {
+  color: #fff;
+  background: linear-gradient(135deg, rgba(111,140,255,0.95), rgba(143,162,255,0.95));
+  border-color: rgba(143,162,255,0.85);
+  box-shadow: 0 0 0 1px rgba(143,162,255,0.40), 0 12px 26px rgba(143,162,255,0.25);
+}
+
+/* 모바일에서 헤더 요소들이 줄바꿈 자연스럽게 */
+@media (max-width: 860px) {
+  .header-inner {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .header-wallet {
+    width: 100%;
+    justify-content: space-between;
+  }
+}

@@ -1,5 +1,5 @@
 /* /assets/js/admin.js */
-/* ethers v5 (UMD) */
+/* ethers v5 (UMD) + firebase compat (UMD) */
 
 (function () {
   const $ = (id) => document.getElementById(id);
@@ -38,6 +38,25 @@
     } catch {
       return String(tsSec);
     }
+  }
+
+  function fmtISO(iso) {
+    if (!iso) return "-";
+    try {
+      return new Date(iso).toLocaleString();
+    } catch {
+      return String(iso);
+    }
+  }
+
+  function safeLink(url, text) {
+    if (!url) return "-";
+    const a = document.createElement("a");
+    a.href = url;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    a.textContent = text || url;
+    return a;
   }
 
   async function getProvider() {
@@ -105,7 +124,6 @@
       await tx.wait();
       setMsg("msgPrice", "완료: 단가가 저장되었습니다.");
 
-      // 읽기 갱신
       await loadCurPrice(contract);
     } catch (e) {
       setMsg("msgPrice", e && e.message ? e.message : String(e));
@@ -122,9 +140,80 @@
     list.appendChild(div);
   }
 
+  // ─────────────────────────────────────────────
+  // Firebase (Firestore) 연결: proofHash→url, ad_orders 목록, mission_guides
+  // ─────────────────────────────────────────────
+
+  let FB = { ok: false, db: null, auth: null };
+
+  async function initFirebaseCompatIfPossible() {
+    try {
+      if (!window.firebase || !window.APP || !APP.firebase) return;
+
+      // 이미 초기화되어 있으면 재사용
+      if (firebase.apps && firebase.apps.length > 0) {
+        FB.db = firebase.firestore();
+        FB.auth = firebase.auth();
+        FB.ok = true;
+        return;
+      }
+
+      firebase.initializeApp(APP.firebase);
+      FB.db = firebase.firestore();
+      FB.auth = firebase.auth();
+      FB.ok = true;
+    } catch {
+      FB.ok = false;
+    }
+  }
+
+  async function ensureAnonAuth() {
+    try {
+      if (!FB.ok || !FB.auth) return;
+      const u = FB.auth.currentUser;
+      if (u) return;
+      await FB.auth.signInAnonymously();
+    } catch {
+      // auth 실패해도 read가 열려 있으면 읽힐 수 있으니 조용히 무시
+    }
+  }
+
+  function getProofCollection() {
+    return (APP.ads && APP.ads.proofCollection) ? APP.ads.proofCollection : "proof_urls";
+  }
+
+  function getOrdersCollection() {
+    return (APP.ads && APP.ads.ordersCollection) ? APP.ads.ordersCollection : "ad_orders";
+  }
+
+  function getMissionGuideCollection() {
+    return (APP.ads && APP.ads.missionGuideCollection) ? APP.ads.missionGuideCollection : "mission_guides";
+  }
+
+  // proofHash -> url: Firestore에서 조회
+  async function fetchProofUrlFromFirestore(proofHash) {
+    try {
+      if (!FB.ok || !FB.db) return null;
+      const col = getProofCollection();
+
+      const snap = await FB.db.collection(col).where("proofHash", "==", proofHash).limit(1).get();
+      if (snap.empty) return null;
+
+      const d = snap.docs[0].data() || {};
+      return d.url ? String(d.url) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  // - 로컬에서는 functions 호출을 안 해서 404 제거
   async function fetchProofUrl(proofHash) {
-    // proofHash로 DB 조회해서 원문 URL을 가져옴 (Netlify function 필요)
-    // 필요 함수: /.netlify/functions/proof_get?proofHash=0x...
+    const url1 = await fetchProofUrlFromFirestore(proofHash);
+    if (url1) return url1;
+
+    const hn = location.hostname;
+    if (hn === "127.0.0.1" || hn === "localhost") return null;
+
     try {
       const r = await fetch("/.netlify/functions/proof_get?proofHash=" + encodeURIComponent(proofHash));
       if (!r.ok) return null;
@@ -132,6 +221,82 @@
       return j && j.url ? String(j.url) : null;
     } catch {
       return null;
+    }
+  }
+
+  // ─────────────────────────────────────────────
+  // 신규: mission guide (광고주 요구) 저장/불러오기
+  // ─────────────────────────────────────────────
+
+  async function loadMissionGuide(missionId) {
+    try {
+      if (!FB.ok || !FB.db) return null;
+      const docId = String(missionId);
+      const snap = await FB.db.collection(getMissionGuideCollection()).doc(docId).get();
+      if (!snap.exists) return null;
+      const d = snap.data() || {};
+      return typeof d.guide === "string" ? d.guide : "";
+    } catch {
+      return null;
+    }
+  }
+
+  async function onGuideLoad() {
+    setMsg("msgGuide", "");
+    try {
+      const missionId = Number(($("missionId") && $("missionId").value) ? $("missionId").value : "0");
+      if (!missionId || missionId <= 0) throw new Error("missionId를 입력하세요.");
+
+      if (!FB.ok || !FB.db) throw new Error("Firebase 연결이 없습니다. admin.html에 firebase compat 스크립트를 추가하세요.");
+
+      const guide = await loadMissionGuide(missionId);
+      if ($("missionGuide")) $("missionGuide").value = guide != null ? guide : "";
+
+      if ($("guideStatus")) $("guideStatus").textContent = guide == null ? "저장된 가이드 없음" : "가이드 로드됨";
+    } catch (e) {
+      setMsg("msgGuide", e && e.message ? e.message : String(e));
+      if ($("guideStatus")) $("guideStatus").textContent = "로드 실패";
+    }
+  }
+
+  async function onGuideSave() {
+    setMsg("msgGuide", "");
+    try {
+      const { signer, me } = await getSignerAndMe();
+      const contract = getContractWith(signer);
+
+      const staffLv = await loadStaffInfo(contract, me);
+      if (staffLv < 5) {
+        setMsg("msgGuide", "접근 불가: staff 레벨이 5 이상이어야 합니다.");
+        return;
+      }
+
+      const missionId = Number(($("missionId") && $("missionId").value) ? $("missionId").value : "0");
+      if (!missionId || missionId <= 0) throw new Error("missionId를 입력하세요.");
+
+      const guide = String(($("missionGuide") && $("missionGuide").value) ? $("missionGuide").value : "").trim();
+      if (!guide) throw new Error("가이드를 입력하세요.");
+
+      if (!FB.ok || !FB.db) throw new Error("Firebase 연결이 없습니다. admin.html에 firebase compat 스크립트를 추가하세요.");
+
+      await FB.db
+        .collection(getMissionGuideCollection())
+        .doc(String(missionId))
+        .set(
+          {
+            missionId,
+            guide,
+            updatedBy: me,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+          },
+          { merge: true }
+        );
+
+      if ($("guideStatus")) $("guideStatus").textContent = "저장됨";
+      setMsg("msgGuide", "가이드 저장 완료");
+    } catch (e) {
+      setMsg("msgGuide", e && e.message ? e.message : String(e));
+      if ($("guideStatus")) $("guideStatus").textContent = "저장 실패";
     }
   }
 
@@ -185,7 +350,6 @@
       link.style.pointerEvents = "none";
       linkRow.appendChild(link);
 
-      // 비동기로 URL 조회해서 링크로 교체
       fetchProofUrl(String(it.proof)).then((url) => {
         if (url) {
           link.href = url;
@@ -194,7 +358,7 @@
           link.textContent = url;
           link.style.pointerEvents = "auto";
         } else {
-          link.textContent = "DB에 원문 URL이 없습니다 (proof_save 호출 여부 확인)";
+          link.textContent = "원문 URL 없음 (proof 저장 확인)";
         }
       });
 
@@ -226,7 +390,6 @@
   async function refreshPending() {
     setMsg("msgPending", "");
     try {
-      // onlyStaff(view) 때문에 “읽기”도 signer로 해야 안전합니다.
       const { signer, me } = await getSignerAndMe();
       const contract = getContractWith(signer);
 
@@ -254,7 +417,7 @@
       const items = [];
       for (let i = 0; i < len; i++) {
         try {
-          const r = await contract.pendingAt(i); // signer 기반이라 from=me로 잡힘
+          const r = await contract.pendingAt(i);
           items.push({
             id: Number(r.id || r[0]),
             missionId: Number(r.missionId || r[1]),
@@ -321,29 +484,8 @@
     }
   }
 
-  function bind() {
-    if ($("btnSetPrice")) $("btnSetPrice").addEventListener("click", onSetPrice);
-    if ($("btnRefresh")) $("btnRefresh").addEventListener("click", refreshPending);
-
-    if ($("missionId")) {
-      $("missionId").addEventListener("change", async () => {
-        try {
-          const { signer } = await getSignerAndMe();
-          const c = getContractWith(signer);
-          await loadCurPrice(c);
-        } catch {}
-      });
-    }
-
-    // ─────────────────────────────────────────────
-    // [추가] 광고 주문 현황(영수증 포함)
-    // ─────────────────────────────────────────────
-    if ($("btnOrdersRefresh")) $("btnOrdersRefresh").addEventListener("click", refreshOrders);
-  }
-
   // ─────────────────────────────────────────────
-  // [추가] 광고 주문 현황(영수증 포함)
-  // Netlify function: /.netlify/functions/ad_orders_list?limit=50
+  // 광고 주문 현황: Firestore에서 직접 읽기
   // ─────────────────────────────────────────────
 
   function setOrdersMsg(msg) {
@@ -361,27 +503,7 @@
     list.appendChild(div);
   }
 
-  function fmtISO(iso) {
-    if (!iso) return "-";
-    try {
-      return new Date(iso).toLocaleString();
-    } catch {
-      return String(iso);
-    }
-  }
-
-  function safeLink(url, text) {
-    if (!url) return "-";
-    const a = document.createElement("a");
-    a.href = url;
-    a.target = "_blank";
-    a.rel = "noopener noreferrer";
-    a.textContent = text || url;
-    return a;
-  }
-
   async function refreshOrders() {
-    // staff 권한 체크: 기존 방식 그대로 signer로 확인
     setOrdersMsg("");
     try {
       const { signer, me } = await getSignerAndMe();
@@ -396,22 +518,16 @@
       const limitSel = $("ordersLimit");
       const limit = Number(limitSel && limitSel.value ? limitSel.value : 50) || 50;
 
-      renderOrdersEmpty("불러오는 중...");
-      const r = await fetch("/.netlify/functions/ad_orders_list?limit=" + encodeURIComponent(String(limit)), {
-        headers: { "Cache-Control": "no-cache" }
-      });
-      if (!r.ok) {
-        renderOrdersEmpty("주문 조회 실패: " + r.status);
-        return;
-      }
-      const j = await r.json();
-      if (!j || !j.ok) {
-        renderOrdersEmpty("주문 조회 실패: " + (j && j.error ? j.error : "unknown"));
+      if (!FB.ok || !FB.db) {
+        renderOrdersEmpty("Firebase 연결이 없습니다. admin.html에 firebase compat 스크립트를 추가하세요.");
         return;
       }
 
-      const items = Array.isArray(j.items) ? j.items : [];
-      if (items.length === 0) {
+      renderOrdersEmpty("불러오는 중...");
+
+      const snap = await FB.db.collection(getOrdersCollection()).orderBy("createdAt", "desc").limit(limit).get();
+
+      if (snap.empty) {
         renderOrdersEmpty("주문 0개");
         return;
       }
@@ -419,7 +535,15 @@
       const list = $("ordersList");
       list.innerHTML = "";
 
-      for (const o of items) {
+      snap.forEach((docSnap) => {
+        const o = docSnap.data() || {};
+        const pay = o.payment || {};
+
+        const createdAtISO =
+          o.createdAt && typeof o.createdAt.toDate === "function"
+            ? o.createdAt.toDate().toISOString()
+            : null;
+
         const div = document.createElement("div");
         div.className = "item";
 
@@ -443,60 +567,115 @@
         const line1 = document.createElement("div");
         line1.className = "muted";
         line1.style.marginTop = "6px";
-        line1.textContent = "주문ID: " + (o.docId || "-") + " / 생성: " + fmtISO(o.createdAt);
+        line1.textContent = "주문ID: " + docSnap.id + " / 생성: " + fmtISO(createdAtISO);
 
         const line2 = document.createElement("div");
         line2.className = "muted";
         line2.style.marginTop = "6px";
         line2.textContent = "가격: " + (o.pricePaw != null ? String(o.pricePaw) : "-") + " HEX";
 
-        const pay = o.payment || {};
         const line3 = document.createElement("div");
         line3.className = "muted";
         line3.style.marginTop = "6px";
         line3.textContent = "결제자: " + (pay.payer ? fmtAddr(pay.payer) : "-");
 
+        const explorer = (window.APP && APP.chain && APP.chain.blockExplorer) ? APP.chain.blockExplorer : "https://opbnbscan.com";
+        const txUrl = pay.txUrl || (pay.txHash ? (explorer + "/tx/" + pay.txHash) : null);
+
         const line4 = document.createElement("div");
         line4.className = "muted";
         line4.style.marginTop = "6px";
-        line4.textContent = "TX: ";
+        line4.textContent = "영수증: ";
 
-        if (pay.txUrl && pay.txHash) {
-          line4.appendChild(safeLink(pay.txUrl, pay.txHash));
-        } else if (pay.txHash) {
-          // txUrl이 저장 안 된 과거 데이터 대비
-          const explorer = (window.APP && APP.chain && APP.chain.blockExplorer) ? APP.chain.blockExplorer : "https://opbnbscan.com";
-          line4.appendChild(safeLink(explorer + "/tx/" + pay.txHash, pay.txHash));
+        if (txUrl && pay.txHash) {
+          line4.appendChild(safeLink(txUrl, pay.txHash));
         } else {
           line4.appendChild(document.createTextNode("-"));
         }
+
+        const line5 = document.createElement("div");
+        line5.className = "muted";
+        line5.style.marginTop = "6px";
+        line5.textContent = "연락처: " + (o.contact || "-");
+
+        const line6 = document.createElement("div");
+        line6.className = "muted";
+        line6.style.marginTop = "6px";
+        line6.textContent = "요청사항: " + (o.required || "-");
+
+        const line7 = document.createElement("div");
+        line7.className = "muted";
+        line7.style.marginTop = "6px";
+        line7.textContent = "참고링크: ";
+        if (o.link) line7.appendChild(safeLink(o.link, o.link));
+        else line7.appendChild(document.createTextNode("-"));
+
+        const line8 = document.createElement("div");
+        line8.className = "muted";
+        line8.style.marginTop = "6px";
+        line8.textContent = "메모: " + (o.memo || "-");
 
         div.appendChild(top);
         div.appendChild(line1);
         div.appendChild(line2);
         div.appendChild(line3);
         div.appendChild(line4);
+        div.appendChild(line5);
+        div.appendChild(line6);
+        div.appendChild(line7);
+        div.appendChild(line8);
 
         list.appendChild(div);
-      }
+      });
 
-      setOrdersMsg("주문 " + items.length + "개 표시됨");
+      setOrdersMsg("주문 표시 완료");
     } catch (e) {
       renderOrdersEmpty("주문 로드 실패");
       setOrdersMsg(e && e.message ? e.message : String(e));
     }
   }
 
+  function bind() {
+    if ($("btnSetPrice")) $("btnSetPrice").addEventListener("click", onSetPrice);
+    if ($("btnRefresh")) $("btnRefresh").addEventListener("click", refreshPending);
+
+    if ($("btnOrdersRefresh")) $("btnOrdersRefresh").addEventListener("click", refreshOrders);
+
+    // 신규: 가이드 버튼
+    if ($("btnGuideLoad")) $("btnGuideLoad").addEventListener("click", onGuideLoad);
+    if ($("btnGuideSave")) $("btnGuideSave").addEventListener("click", onGuideSave);
+
+    // missionId 바뀌면: 단가 로드 + 가이드 로드
+    if ($("missionId")) {
+      $("missionId").addEventListener("change", async () => {
+        try {
+          const { signer } = await getSignerAndMe();
+          const c = getContractWith(signer);
+          await loadCurPrice(c);
+        } catch {}
+
+        try { await onGuideLoad(); } catch {}
+      });
+    }
+  }
+
   async function boot() {
     bind();
+
+    await initFirebaseCompatIfPossible();
+    await ensureAnonAuth();
+
     try {
       const { signer } = await getSignerAndMe();
       const c = getContractWith(signer);
       await loadCurPrice(c);
     } catch {}
+
+    // 처음 진입 시 가이드도 한번 로드(미션ID 입력돼 있으면)
+    try { await onGuideLoad(); } catch {}
+
     await refreshPending();
 
-    // 주문현황 섹션이 있으면 자동 1회 로드
     if ($("ordersList")) {
       try { await refreshOrders(); } catch {}
     }

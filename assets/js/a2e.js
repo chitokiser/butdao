@@ -44,6 +44,89 @@
     return new ethers.Contract(APP.contracts.a2e, APP.a2eAbi, signerOrProvider);
   }
 
+  function escapeHtml(s) {
+    return String(s || "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+  // ============================================
+  // Firestore: mission guide (admin에서 저장한 값 표시)
+  // ============================================
+
+  function firebaseReady() {
+    return typeof window.firebase !== "undefined" && window.APP && APP.firebase;
+  }
+
+  function guideCollectionName() {
+    // config.js에서 바꾸고 싶으면 APP.ads.missionGuideCollection="mission_guides" 같은 식으로 넣어도 됨
+    if (APP.ads && APP.ads.missionGuideCollection) return APP.ads.missionGuideCollection;
+    if (APP.firestore && APP.firestore.missionGuides) return APP.firestore.missionGuides;
+    return "mission_guides";
+  }
+
+  async function ensureFirebaseAnon() {
+    if (!firebaseReady()) return false;
+    try {
+      if (!firebase.apps || firebase.apps.length === 0) {
+        firebase.initializeApp(APP.firebase);
+      }
+      const auth = firebase.auth();
+      if (!auth.currentUser) {
+        await auth.signInAnonymously();
+      }
+      return true;
+    } catch (e) {
+      console.warn("firebase anon auth failed:", e);
+      return false;
+    }
+  }
+
+  async function loadGuideFromFirestore(missionId) {
+    if (!firebaseReady()) return null;
+    const ok = await ensureFirebaseAnon();
+    if (!ok) return null;
+
+    try {
+      const db = firebase.firestore();
+      const doc = await db.collection(guideCollectionName()).doc(String(missionId)).get();
+      if (!doc.exists) return null;
+
+      const data = doc.data() || {};
+      if (!data.guide) return null;
+      return String(data.guide);
+    } catch (e) {
+      console.warn("loadGuideFromFirestore failed:", e);
+      return null;
+    }
+  }
+
+  async function applyGuidesToUI() {
+    // 카드가 렌더된 후 호출되어야 함
+    const missions = APP.missions || [];
+    if (missions.length === 0) return;
+
+    for (const ms of missions) {
+      const el = document.getElementById(`guide_${ms.id}`);
+      if (!el) continue;
+
+      // Firestore 가이드가 있으면 우선 적용, 없으면 기존 config.js guide 유지
+      const g = await loadGuideFromFirestore(ms.id);
+      if (g) {
+        el.innerHTML = escapeHtml(g).replaceAll("\n", "<br/>");
+      } else {
+        el.innerHTML = escapeHtml(ms.guide || "-").replaceAll("\n", "<br/>");
+      }
+    }
+  }
+
+  // ============================================
+  // 기존 기능: 내 정보 로드
+  // ============================================
+
   async function loadMe() {
     const meWallet = $("#meWallet");
     const meId = $("#meId");
@@ -97,6 +180,10 @@
     mePay.textContent = `${fmtUnits(info.mypay, 18, 4)} HEX`;
   }
 
+  // ============================================
+  // 기존 기능: 미션 렌더
+  // ============================================
+
   async function renderMissions() {
     const wrap = $("#missionGrid");
     if (!wrap) return;
@@ -106,6 +193,7 @@
     for (const ms of missions) {
       const card = document.createElement("div");
       card.className = "card mission";
+
       card.innerHTML = `
         <div class="row">
           <div class="meta">
@@ -121,8 +209,7 @@
 
         <div class="box">
           <div>가이드</div>
-          <div style="margin-top:6px;">${escapeHtml(ms.guide || "-")}</div>
-          <div style="margin-top:10px;">예시 proof 포맷</div>
+          <div id="guide_${ms.id}" style="margin-top:6px;">${escapeHtml(ms.guide || "-")}</div>
           <div style="margin-top:6px;">${escapeHtml(ms.proofExample || "-")}</div>
         </div>
 
@@ -132,8 +219,8 @@
           <div class="k">마지막처리</div><div class="v" id="l_${ms.id}">-</div>
         </div>
 
-        <div class="sub">proof 텍스트</div>
-        <textarea class="txt" id="proof_${ms.id}" placeholder="proof 텍스트를 붙여넣으세요"></textarea>
+        <div class="sub">관리자 확인을 위해 작업한 url을 입력하세요</div>
+        <textarea class="txt" id="proof_${ms.id}" placeholder="url을 붙여넣으세요"></textarea>
 
         <div class="row">
           <button class="btn" id="btnClaim_${ms.id}">청구하기</button>
@@ -143,6 +230,10 @@
       wrap.appendChild(card);
     }
   }
+
+  // ============================================
+  // 기존 기능: 미션 상태/가격 갱신
+  // ============================================
 
   async function refreshMissionStatuses() {
     if (!WALLET.provider || !WALLET.address) return;
@@ -189,14 +280,9 @@
     }
   }
 
-  function escapeHtml(s) {
-    return String(s || "")
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#039;");
-  }
+  // ============================================
+  // 기존 기능: Join/Renew/Withdraw
+  // ============================================
 
   async function onClickJoin() {
     try {
@@ -226,6 +312,7 @@
       await walletRefreshHex();
       await loadMe();
       await refreshMissionStatuses();
+      await applyGuidesToUI(); // 가입 후에도 가이드 유지
     } catch (e) {
       toast(asUserMessage(e), "error", "Join 실패");
     }
@@ -263,6 +350,7 @@
       await walletRefreshHex();
       await loadMe();
       await refreshMissionStatuses();
+      await applyGuidesToUI();
     } catch (e) {
       toast(asUserMessage(e), "error", "Renew 실패");
     }
@@ -284,26 +372,36 @@
       await walletRefreshHex();
       await loadMe();
       await refreshMissionStatuses();
+      await applyGuidesToUI();
     } catch (e) {
       toast(asUserMessage(e), "error", "출금 실패");
     }
   }
-async function saveProofUrlToNetlify({ proofHash, url, chainId, contract, owner, id, missionId, txHash }) {
-  await fetch("/.netlify/functions/proof_save", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      proofHash,
-      url,
-      chainId,
-      contract,
-      owner,
-      id,
-      missionId,
-      txHash
-    })
-  });
-}
+
+  // ============================================
+  // 기존 기능: proof url netlify save 함수 (원본 유지)
+  // ============================================
+
+  async function saveProofUrlToNetlify({ proofHash, url, chainId, contract, owner, id, missionId, txHash }) {
+    await fetch("/.netlify/functions/proof_save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        proofHash,
+        url,
+        chainId,
+        contract,
+        owner,
+        id,
+        missionId,
+        txHash
+      })
+    });
+  }
+
+  // ============================================
+  // 기존 기능: 미션 버튼 바인딩 (claim/cancel)
+  // ============================================
 
   async function bindMissionButtons() {
     for (const ms of APP.missions) {
@@ -328,6 +426,9 @@ async function saveProofUrlToNetlify({ proofHash, url, chainId, contract, owner,
             toast(`미션 #${ms.id} 청구 전송...`, "info");
             const tx = await a2e.claim(idNum, ms.id, proof);
             await tx.wait();
+
+            // netlify 저장은 기존 흐름 유지(원하면 여기서 saveProofUrlToNetlify 호출 확장 가능)
+            // 예: await saveProofUrlToNetlify({ proofHash: proof, url: txt, ... })
 
             toast("청구 완료: 심사중 표시됩니다.", "ok");
             await refreshMissionStatuses();
@@ -361,10 +462,19 @@ async function saveProofUrlToNetlify({ proofHash, url, chainId, contract, owner,
     }
   }
 
+  // ============================================
+  // 기존 기능: 지갑 연결 콜백
+  // ============================================
+
   window.onWalletConnected = async function () {
     await loadMe();
     await refreshMissionStatuses();
+    await applyGuidesToUI(); // 지갑 연결 후 가이드도 덮어쓰기
   };
+
+  // ============================================
+  // 초기 부팅
+  // ============================================
 
   document.addEventListener("DOMContentLoaded", async () => {
     // 지갑 UI 요소 추가(헤더가 head.html에 있을 경우)
@@ -372,6 +482,10 @@ async function saveProofUrlToNetlify({ proofHash, url, chainId, contract, owner,
     if (addrEl && WALLET.address) addrEl.textContent = WALLET.address;
 
     await renderMissions();
+
+    // 카드가 그려진 뒤에 Firestore 가이드 덮어쓰기
+    await applyGuidesToUI();
+
     await bindMissionButtons();
 
     // 버튼 바인딩
@@ -383,6 +497,7 @@ async function saveProofUrlToNetlify({ proofHash, url, chainId, contract, owner,
     if (WALLET.provider && WALLET.address) {
       await loadMe();
       await refreshMissionStatuses();
+      await applyGuidesToUI();
     }
   });
 })();
