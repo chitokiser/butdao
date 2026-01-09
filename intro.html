@@ -1,0 +1,405 @@
+<!-- /intro.html -->
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>BlueEco DAO 소개</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+  <link rel="icon" href="/assets/img/favicon.png">
+  <link rel="shortcut icon" href="/assets/img/favicon.png">
+
+  <link rel="stylesheet" href="/assets/css/style.css" />
+  <link rel="stylesheet" href="/assets/css/header-wallet.css" />
+
+  <!-- 중요: header-wallet.js가 ethers v6 문법을 쓴다면, v6를 먼저 로드 -->
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.14.0/dist/ethers.umd.min.js"></script>
+  <script src="/assets/js/header-wallet.js" defer></script>
+
+  <style>
+    :root{
+      --page-max: 1180px;
+      --pad-x: 14px;
+      --card-bg: rgba(255,255,255,.04);
+      --card-line: rgba(255,255,255,.08);
+    }
+
+    body{
+      -webkit-text-size-adjust: 100%;
+      touch-action: manipulation;
+    }
+
+    .page{
+      max-width: var(--page-max);
+      margin: 0 auto;
+      padding: 18px var(--pad-x) 90px;
+    }
+
+    .hero{
+      display:flex;
+      align-items:flex-end;
+      justify-content:space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+
+    .h1{
+      font-size: 22px;
+      font-weight: 900;
+      letter-spacing: .2px;
+      margin: 0;
+      line-height: 1.2;
+    }
+
+    .sub{
+      margin-top: 6px;
+      opacity: .75;
+      font-size: 13px;
+      line-height: 1.45;
+      max-width: 860px;
+    }
+
+    .hero-actions{
+      display:flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content:flex-end;
+    }
+
+    .btnx{
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.06);
+      color: inherit;
+      padding: 10px 12px;
+      border-radius: 14px;
+      cursor: pointer;
+      font-weight: 800;
+      font-size: 13px;
+      text-decoration:none;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap: 8px;
+      white-space: nowrap;
+    }
+
+    .card{
+      border-radius: 18px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-line);
+      padding: 14px;
+    }
+
+    .section{
+      margin-top: 14px;
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    .row{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .k{
+      opacity: .7;
+      font-size: 12px;
+    }
+
+    .v{
+      font-weight: 900;
+      font-size: 16px;
+    }
+
+    .list{
+      display:grid;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .item{
+      display:flex;
+      gap: 12px;
+      align-items:flex-start;
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,.08);
+      background: rgba(255,255,255,.03);
+      padding: 12px;
+    }
+
+    .item .badge{
+      flex: 0 0 auto;
+      min-width: 52px;
+      height: 28px;
+      border-radius: 999px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size: 12px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.04);
+      opacity: .9;
+      font-weight: 900;
+      letter-spacing: .3px;
+    }
+
+    .item .meta{
+      flex: 1;
+      min-width: 0;
+    }
+
+    .item .title{
+      font-weight: 900;
+      font-size: 14px;
+      line-height: 1.25;
+      margin: 0;
+    }
+
+    .item .desc{
+      margin-top: 6px;
+      opacity: .72;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .item .right{
+      flex: 0 0 auto;
+      display:flex;
+      flex-direction: column;
+      align-items:flex-end;
+      gap: 8px;
+    }
+
+    .pill{
+      font-size: 12px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.04);
+      opacity: .85;
+      white-space: nowrap;
+    }
+
+    .cta{
+      width: 100%;
+      border: 0;
+      border-radius: 14px;
+      padding: 10px 12px;
+      cursor: pointer;
+      font-weight: 900;
+      background: rgba(124,92,255,.85);
+      color: #fff;
+      font-size: 13px;
+    }
+
+    .cta.secondary{
+      background: rgba(255,255,255,.10);
+      color: rgba(255,255,255,.92);
+      border: 1px solid rgba(255,255,255,.14);
+    }
+
+    .hr{
+      height:1px;
+      border:0;
+      margin: 12px 0;
+      background: rgba(255,255,255,.08);
+    }
+
+    .mono{
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
+      font-size: 12px;
+      opacity: .85;
+      word-break: break-all;
+      line-height: 1.55;
+    }
+
+    /* 데스크탑에서 2열 이상 */
+    @media (min-width: 980px){
+      :root{ --pad-x: 16px; }
+      .h1{ font-size: 28px; }
+      .grid{ grid-template-columns: 1.05fr .95fr; }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- 공통 헤더 삽입: head.html은 루트, include.js가 넣어줌 -->
+  <div id="include-head"></div>
+
+  <main class="page">
+    <div class="hero">
+      <div>
+        <h1 class="h1">BlueEco DAO 소개</h1>
+        <div class="sub">
+          A2E는 HEX로 광고비를 예치하고, DAO 마케터가 미션을 수행하면 심사/승인 결과에 따라 보상이 자동 누적·지급되는
+          탈중앙 P2P 광고 보상 플랫폼입니다. 플랫폼 수익 일부는 BUT Bank로 이동해 BUT의 내재 가치(HEX 기반)를 강화하고,
+          BUT 스테이킹 참여자는 배당과 혜택을 통해 플랫폼 성장에 함께 참여합니다.
+        </div>
+      </div>
+
+      <div class="hero-actions">
+        <a class="btnx" href="/assets/docs/BlueEcoDao백서.pdf" target="_blank" rel="noreferrer">백서(PDF)</a>
+        <a class="btnx" href="https://hexdao.netlify.app/" target="_blank" rel="noreferrer">HEXDAO DEX</a>
+      </div>
+    </div>
+
+    <section class="section grid">
+      <!-- 좌측: 핵심 개요 -->
+      <div class="card">
+        <div class="row">
+          <div>
+            <div class="k">핵심 구조</div>
+            <div class="v">광고 → 미션 → 자동 분배 → 가치 축적 → 배당</div>
+          </div>
+          <span class="pill">opBNB 메인넷</span>
+        </div>
+
+        <div class="list">
+          <div class="item">
+            <div class="badge">HEX</div>
+            <div class="meta">
+              <p class="title">결제/정산 토큰</p>
+              <div class="desc">
+                광고비 결제 및 보상 지급에 사용됩니다. A2E 컨트랙트가 광고비를 보관하고,
+                승인된 보상은 사용자가 직접 출금(Withdraw)으로 수령합니다.
+              </div>
+            </div>
+            <div class="right">
+              <span class="pill">18 decimals</span>
+              <button class="cta secondary" type="button" onclick="location.href='/ad_request.html'">광고 의뢰</button>
+            </div>
+          </div>
+
+          <div class="item">
+            <div class="badge">A2E</div>
+            <div class="meta">
+              <p class="title">미션 수행 & 심사</p>
+              <div class="desc">
+                마케터는 미션 수행 후 proof(증빙 해시)를 제출하고,
+                스태프가 승인하면 보상이 누적됩니다. 상태는 온체인(pending)으로 기록됩니다.
+              </div>
+            </div>
+            <div class="right">
+              <span class="pill">심사 기반</span>
+              <button class="cta" type="button" onclick="location.href='/a2e.html'">미션 보기</button>
+            </div>
+          </div>
+
+          <div class="item">
+            <div class="badge">BUT</div>
+            <div class="meta">
+              <p class="title">가치/배당 토큰</p>
+              <div class="desc">
+                플랫폼 수익 일부가 BUT Bank로 이동해 HEX 잔고를 축적합니다.
+                BUT 스테이킹 참여자는 7일 주기로 HEX 배당을 받을 수 있도록 설계되었습니다.
+              </div>
+            </div>
+            <div class="right">
+              <span class="pill">0 decimals</span>
+              <button class="cta secondary" type="button" onclick="location.href='https://hexdao.netlify.app/'">거래소 이동</button>
+            </div>
+          </div>
+
+          <div class="item">
+            <div class="badge">MY</div>
+            <div class="meta">
+              <p class="title">내 활동/보상 확인</p>
+              <div class="desc">
+                마이페이지에서 내 ID, 누적 보상(mypay), 총 출금(totalpay), 멘토 보상 등을 확인합니다.
+              </div>
+            </div>
+            <div class="right">
+              <span class="pill">지갑 연결</span>
+              <button class="cta" type="button" onclick="location.href='/mypage.html'">마이페이지</button>
+            </div>
+          </div>
+        </div>
+
+        <hr class="hr"/>
+
+        <div class="mono">
+          A2E(요약)<br/>
+          - 상태: pending(0 없음 / 1 심사중 / 2 취소·거절 / 3 승인)<br/>
+          - 보상: reward = (adprice[missionId] * level) / 10<br/>
+          - 수익축적: 가입/갱신 비용의 일부가 fee로 누적 → threshold 도달 시 BUT Bank로 이체
+        </div>
+      </div>
+
+      <!-- 우측: FAQ/안내 -->
+      <div class="card">
+        <div class="row">
+          <div>
+            <div class="k">사용 안내</div>
+            <div class="v" style="font-size:14px;">헤더에서 지갑 연결</div>
+          </div>
+          <span class="pill">모바일 최적화</span>
+        </div>
+
+        <div class="sub" style="margin-top:10px; opacity:.78;">
+          상단에서 지갑연결을 누르면 토큰 잔고 바가 다음 줄에 표시됩니다.<br/>
+          연결이 안 되면 opBNB 네트워크 / 지갑 설치 여부를 확인하세요.
+        </div>
+
+        <div class="list" style="margin-top:12px;">
+          <div class="item">
+            <div class="badge">Q</div>
+            <div class="meta">
+              <p class="title">왜 P2P 광고 보상인가요?</p>
+              <div class="desc">
+                광고비를 컨트랙트가 보관하고, 승인 규칙에 따라 분배함으로써
+                지급 지연과 미지급 리스크를 줄입니다.
+              </div>
+            </div>
+          </div>
+
+          <div class="item">
+            <div class="badge">Q</div>
+            <div class="meta">
+              <p class="title">BUT의 가치는 어떻게 강화되나요?</p>
+              <div class="desc">
+                플랫폼 수익의 일부가 BUT Bank로 이동하여 HEX 잔고가 축적될 수 있습니다.
+                BUT Bank는 HEX 잔고와 스테이킹 규모를 바탕으로 가격을 갱신하도록 설계되어 있습니다.
+              </div>
+            </div>
+          </div>
+
+          <div class="item">
+            <div class="badge">Q</div>
+            <div class="meta">
+              <p class="title">광고비 할인(DC)은 어떻게 적용되나요?</p>
+              <div class="desc">
+                v1은 정책 기반으로 운영하고, 이후 BUT 스테이킹량을 조회해 자동 할인 적용(온체인화)로 확장 가능합니다.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <hr class="hr"/>
+
+        <div class="hero-actions" style="justify-content:flex-start;">
+          <button class="cta" type="button" onclick="location.href='/ad_request.html'">광고 의뢰 시작</button>
+          <button class="cta secondary" type="button" onclick="location.href='/a2e.html'">미션 참여</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- 공통 푸터 삽입 -->
+  <div id="include-footer"></div>
+
+  <!-- include.js는 1번만 (head.html / footer.html을 루트에서 로드) -->
+  <script src="/assets/js/include.js"></script>
+
+  <!-- 공통 설정/지갑 (프로젝트에서 쓰는 순서 유지) -->
+  <script src="/assets/js/config.js"></script>
+  <script src="/assets/js/wallet.js"></script>
+</body>
+</html>
