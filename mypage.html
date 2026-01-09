@@ -1,15 +1,25 @@
+<!-- /mypage.html -->
 <!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
   <title>PawDAO · 마이페이지</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 
   <link rel="icon" href="/assets/img/favicon.png">
   <link rel="shortcut icon" href="/assets/img/favicon.png">
 
   <link rel="stylesheet" href="/assets/css/style.css" />
   <link rel="stylesheet" href="/assets/css/a2e.css" />
+
+  <!-- 헤더 지갑 UI: 이 페이지에도 포함 -->
+  <link rel="stylesheet" href="/assets/css/header-wallet.css" />
+
+  <!-- ethers v6로 통일 (v5 제거) -->
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.14.0/dist/ethers.umd.min.js"></script>
+
+  <!-- 헤더 지갑 JS (include-head 삽입 타이밍 대응) -->
+  <script src="/assets/js/header-wallet.js" defer></script>
 
   <style>
     .xp-wrap{margin-top:12px}
@@ -20,6 +30,13 @@
     .xp-fill{height:100%;width:0%;border-radius:999px;background:linear-gradient(90deg, rgba(70,230,160,.95), rgba(70,160,230,.95));transition:width .35s ease}
     .xp-sub{margin-top:8px;opacity:.85;font-size:13px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
     .xp-sub .muted{opacity:.75}
+
+    /* 모바일 정렬 약간 보정 */
+    .a2e-wrap{ max-width:1080px; margin:0 auto; padding:20px 14px 90px; }
+    @media (max-width:520px){
+      .row{ gap:10px; }
+      .row .btn, .row a.btn{ width:100%; }
+    }
   </style>
 </head>
 <body>
@@ -59,8 +76,8 @@
       </div>
 
       <div class="row" style="margin-top:12px; flex-wrap:wrap; gap:10px;">
-        <button class="btn" id="btnWithdraw">출금하기</button>
-        <button class="btn" id="btnLevelUp">Level Up</button>
+        <button class="btn" id="btnWithdraw" type="button">출금하기</button>
+        <button class="btn" id="btnLevelUp" type="button">Level Up</button>
         <a class="btn ghost" href="/a2e.html">A2E로</a>
         <a class="btn ghost" href="/admin.html" id="goAdmin" style="display:none;">관리자</a>
       </div>
@@ -88,10 +105,24 @@
     <div class="m" id="toastMsg"></div>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <!-- 공통/페이지 스크립트 -->
   <script src="/assets/js/config.js"></script>
   <script src="/assets/js/include.js"></script>
+
+  <!-- 프로젝트 기존 JS 유지 -->
   <script src="/assets/js/wallet.js"></script>
   <script src="/assets/js/mypage.js"></script>
+  <script>
+  (function syncWallet(){
+    if (window.WALLET && WALLET.address) {
+      if (window.onWalletConnected) {
+        window.onWalletConnected();
+      }
+      return;
+    }
+    setTimeout(syncWallet, 300);
+  })();
+</script>
+
 </body>
 </html>

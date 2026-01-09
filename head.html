@@ -1,24 +1,39 @@
-<header id="header">
+<!-- /head.html -->
+<header id="header" class="top-header">
   <div class="header-inner">
+    <!-- 왼쪽: 로고 -->
+    <a class="header-logo" href="/index.html" aria-label="BlueEco DAO home">
+      <img src="/assets/img/but.png" alt="BUT" />
+      <span>BlueEco DAO</span>
+    </a>
 
-    <div class="header-logo">
-      <a href="/index.html">
-        <img src="/assets/img/but.png" alt="PAW" />
-      </a>
-    </div>
-
-    <nav class="header-nav">
+    <!-- 가운데: 메뉴 -->
+    <nav class="header-nav" aria-label="primary">
       <a href="/ad_request.html">광고의뢰</a>
       <a href="/a2e.html">광고미션수행</a>
       <a href="/mypage.html">마이페이지</a>
-    
     </nav>
 
-    <div class="header-wallet">
-      <span id="hex-balance">HEX잔고: -</span>
-      <span id="wallet-addr" class="sub" style="margin-left:10px;">-</span>
-      <button class="btn" id="wallet-btn" onclick="connectWallet()">지갑연결</button>
-    </div>
+    <!-- 오른쪽: 지갑 -->
+    <div class="wallet-area" id="walletArea">
+      <!-- 한 줄(주소 + 버튼 + 상태) -->
+      <div class="wallet-top">
+        <span id="wallet-addr" class="wallet-addr">지갑: -</span>
+        <button class="btn btn-primary" id="wallet-btn" type="button">지갑연결</button>
+        <span id="wallet-status" class="wallet-status">연결 대기</span>
+      </div>
 
+      <!-- 다음 줄(지갑 연결 후 표시) -->
+      <div class="token-strip" id="token-strip" aria-label="token balances">
+        <!-- JS가 buildStrip로 다시 채울 수도 있으니 기본 표시는 있어도 되고 없어도 됨 -->
+        <span class="token-pill muted">USDT: -</span>
+        <span class="token-pill muted">HEX: -</span>
+        <span class="token-pill muted">HUT: -</span>
+        <span class="token-pill muted">PUT: -</span>
+        <span class="token-pill muted">BUT: -</span>
+        <span class="token-pill muted">EXP: -</span>
+        <span class="token-pill muted">VET: -</span>
+      </div>
+    </div>
   </div>
 </header>

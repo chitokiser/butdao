@@ -2,40 +2,290 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>BlueEcoDAO</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BlueEco DAO</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 
   <link rel="icon" href="/assets/img/favicon.png">
-  <link rel="shortcut icon" href="/assets/img/favicon.png">   
-  <link rel="stylesheet" href="/assets/css/style.css" />
-</head>
-<body>
+  <link rel="shortcut icon" href="/assets/img/favicon.png">
 
+  <link rel="stylesheet" href="/assets/css/style.css" />
+  <link rel="stylesheet" href="/assets/css/header-wallet.css" />
+
+  <!-- 중요: header-wallet.js가 ethers v6 문법을 쓴다면, v6를 먼저 로드 -->
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.14.0/dist/ethers.umd.min.js"></script>
+  <script src="/assets/js/header-wallet.js" defer></script>
+
+  <style>
+    /* 모바일 우선 레이아웃 (index 전용) */
+    :root{
+      --page-max: 1180px;
+      --pad-x: 14px;
+      --card-bg: rgba(255,255,255,.04);
+      --card-line: rgba(255,255,255,.08);
+    }
+
+    body{
+      -webkit-text-size-adjust: 100%;
+      touch-action: manipulation;
+    }
+
+    .page{
+      max-width: var(--page-max);
+      margin: 0 auto;
+      padding: 18px var(--pad-x) 90px;
+    }
+
+    .hero{
+      display:flex;
+      align-items:flex-end;
+      justify-content:space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+
+    .h1{
+      font-size: 22px;
+      font-weight: 900;
+      letter-spacing: .2px;
+      margin: 0;
+      line-height: 1.2;
+    }
+
+    .sub{
+      margin-top: 6px;
+      opacity: .75;
+      font-size: 13px;
+    }
+
+    .hero-actions{
+      display:flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content:flex-end;
+    }
+
+    .btnx{
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.06);
+      color: inherit;
+      padding: 10px 12px;
+      border-radius: 14px;
+      cursor: pointer;
+      font-weight: 800;
+      font-size: 13px;
+    }
+
+    .card{
+      border-radius: 18px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-line);
+      padding: 14px;
+    }
+
+    .section{
+      margin-top: 14px;
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    .row{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .k{
+      opacity: .7;
+      font-size: 12px;
+    }
+
+    .v{
+      font-weight: 900;
+      font-size: 16px;
+    }
+
+    .list{
+      display:grid;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .item{
+      display:flex;
+      gap: 12px;
+      align-items:flex-start;
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,.08);
+      background: rgba(255,255,255,.03);
+      padding: 12px;
+    }
+
+    .item .badge{
+      flex: 0 0 auto;
+      min-width: 46px;
+      height: 28px;
+      border-radius: 999px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size: 12px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.04);
+      opacity: .9;
+    }
+
+    .item .meta{
+      flex: 1;
+      min-width: 0;
+    }
+
+    .item .title{
+      font-weight: 900;
+      font-size: 14px;
+      line-height: 1.25;
+      margin: 0;
+    }
+
+    .item .desc{
+      margin-top: 6px;
+      opacity: .72;
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .item .right{
+      flex: 0 0 auto;
+      display:flex;
+      flex-direction: column;
+      align-items:flex-end;
+      gap: 8px;
+    }
+
+    .pill{
+      font-size: 12px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.04);
+      opacity: .85;
+      white-space: nowrap;
+    }
+
+    .cta{
+      width: 100%;
+      border: 0;
+      border-radius: 14px;
+      padding: 10px 12px;
+      cursor: pointer;
+      font-weight: 900;
+      background: rgba(124,92,255,.85);
+      color: #fff;
+      font-size: 13px;
+    }
+
+    /* 데스크탑에서 2열 이상 */
+    @media (min-width: 980px){
+      :root{ --pad-x: 16px; }
+      .h1{ font-size: 28px; }
+      .grid{ grid-template-columns: 1.1fr .9fr; }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- 공통 헤더 삽입 (head.html은 루트) -->
   <div id="include-head"></div>
 
-  <main id="content">
-    <h2>우리가 원하던 DAO</h2>
-    <h3>Blue Eco DAO</h3>
-    <p class="desc">
-   
-      광고주는 HEX토큰을 이용해 <br>
-      회원들의 블로그,페이스북,인스타그램,유투브등에 광고를 진행 하세요<br>
-      회원은 <br>
-      광고 미션을 매일 수행하고 사례비로 HEX를 받을 수 있습니다.<br>
-    </p>
+  <main class="page">
+    <div class="hero">
+      <div>
+        <h1 class="h1">BlueEco DAO</h1>
+        <div class="sub">광고 미션 · 리워드 · 토큰 생태계</div>
+      </div>
 
-    <div style="margin-top:18px;">
-      <a class="btn primary" href="/a2e.html">광고미션 수행하기</a>
-      <a class="btn" href="/mypage.html" style="margin-left:8px;">마이페이지</a>
+
     </div>
+
+    <section class="section grid">
+      <div class="card">
+        <div class="row">
+          <div>
+            <div class="k">오늘의 상태</div>
+            <div class="v">진행중</div>
+          </div>
+          <span class="pill">opBNB 메인넷</span>
+        </div>
+
+        <div class="list">
+          <div class="item">
+            <div class="badge">A2E</div>
+            <div class="meta">
+              <p class="title">광고 미션 참여</p>
+              <div class="desc">미션 수행 후 보상을 받는 구조. 지갑 연결 후 진행 가능합니다.</div>
+            </div>
+            <div class="right">
+              <span class="pill">즉시 참여</span>
+              <button class="cta" type="button" onclick="location.href='/a2e.html'">미션 보기</button>
+            </div>
+          </div>
+
+          <div class="item">
+            <div class="badge">AD</div>
+            <div class="meta">
+              <p class="title">광고 의뢰</p>
+              <div class="desc">상품/가게/콘텐츠 홍보를 미션으로 구성하고 집행합니다.</div>
+            </div>
+            <div class="right">
+              <span class="pill">HEX 결제</span>
+              <button class="cta" type="button" onclick="location.href='/ad_request.html'">가격/주문</button>
+            </div>
+          </div>
+
+          <div class="item">
+            <div class="badge">MY</div>
+            <div class="meta">
+              <p class="title">마이페이지</p>
+              <div class="desc">내 활동/보상/내역 확인. 지갑 연결 후 데이터가 표시됩니다.</div>
+            </div>
+            <div class="right">
+              <span class="pill">내역 확인</span>
+              <button class="cta" type="button" onclick="location.href='/mypage.html'">열기</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="row">
+          <div>
+            <div class="k">안내</div>
+            <div class="v" style="font-size:14px;">모바일 최적화 완료</div>
+          </div>
+          <span class="pill">지갑 연결 필요</span>
+        </div>
+
+        <div class="desc" style="margin-top:10px; opacity:.78;">
+          상단에서 지갑연결을 누르면 토큰 잔고 바가 다음 줄에 표시됩니다.<br/>
+          연결이 안 되면 opBNB 네트워크 / 지갑 설치 여부를 확인하세요.
+        </div>
+      </div>
+    </section>
   </main>
 
   <div id="include-footer"></div>
 
-  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <!-- include.js는 1번만 -->
   <script src="/assets/js/include.js"></script>
-    <script src="/assets/js/config.js"></script>
-  <script src="/assets/js/wallet.js"></script>
 
+  <!-- 다른 페이지 기능 스크립트가 필요하면 여기에 추가 -->
+  <script src="/assets/js/config.js"></script>
+  <script src="/assets/js/wallet.js"></script>
 </body>
 </html>

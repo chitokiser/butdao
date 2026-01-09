@@ -1,0 +1,283 @@
+:root{
+  --bg0: rgba(10,12,16,.78);
+  --bg1: rgba(10,12,16,.55);
+  --line: rgba(255,255,255,.10);
+  --line2: rgba(255,255,255,.06);
+  --text: rgba(255,255,255,.92);
+  --muted: rgba(255,255,255,.64);
+
+  --ok: rgba(41,255,198,.28);
+  --warn: rgba(255,214,10,.26);
+
+  --r14: 14px;
+  --r12: 12px;
+}
+
+.top-header{
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  background: linear-gradient(180deg, var(--bg0), var(--bg1));
+  border-bottom: 1px solid var(--line2);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+/* 로고 | 메뉴 | 지갑 -> 무조건 한 줄 */
+.header-inner{
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 12px 14px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap: 14px;
+  flex-wrap: nowrap;
+}
+
+/* 로고 */
+.header-logo{
+  display:flex;
+  align-items:center;
+  gap: 10px;
+  text-decoration:none;
+  color: var(--text);
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+.header-logo img{
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  object-fit: contain;
+  background: rgba(255,255,255,.06);
+  border: 1px solid var(--line2);
+  padding: 5px;
+}
+
+/* 메뉴 */
+.header-nav{
+  display:flex;
+  align-items:center;
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid var(--line2);
+  border-radius: 999px;
+  background: rgba(255,255,255,.03);
+  flex: 0 1 auto;
+  white-space: nowrap;
+}
+.header-nav a{
+  text-decoration:none;
+  color: var(--muted);
+  font-size: 13px;
+  padding: 8px 10px;
+  border-radius: 999px;
+}
+.header-nav a:hover{
+  color: var(--text);
+  background: rgba(255,255,255,.06);
+}
+
+/* 지갑 박스: 내부는 2줄 구조(위=주소/버튼/상태, 아래=토큰바) */
+.wallet-area{
+  flex: 0 0 auto;
+  min-width: 420px;
+  border: 1px solid var(--line2);
+  border-radius: var(--r14);
+  background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.03));
+  padding: 8px 10px;
+  display:flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* 첫 줄: 주소 + 버튼 + 상태 */
+.wallet-top{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap: 10px;
+  width: 100%;
+}
+
+/* 주소는 길면 줄이지 말고 ... 처리 */
+.wallet-addr{
+  color: var(--text);
+  font-size: 13px;
+  opacity: .92;
+  overflow:hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 220px;
+  margin-right: auto;
+}
+
+/* 상태는 작게 */
+.wallet-status{
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* 버튼 */
+.btn{
+  border: 1px solid var(--line);
+  background: rgba(255,255,255,.06);
+  color: var(--text);
+  padding: 9px 12px;
+  border-radius: var(--r12);
+  font-size: 13px;
+  cursor: pointer;
+}
+.btn:hover{ background: rgba(255,255,255,.09); }
+
+.btn-primary{
+  border-color: rgba(41,255,198,.35);
+  background: linear-gradient(180deg, rgba(41,255,198,.18), rgba(53,182,255,.10));
+}
+
+/* 둘째 줄: 토큰바 (기본 숨김 -> 연결 시 표시) */
+.token-strip{
+  display:none;
+  width: 100%;
+  align-items:center;
+  gap: 6px;
+  white-space: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 2px;
+}
+
+/* JS가 지갑연결 시 wallet-area에 is-connected 붙이면 다음줄에 표시됨 */
+.wallet-area.is-connected .token-strip{
+  display:flex;
+}
+
+/* 스크롤바 */
+.token-strip::-webkit-scrollbar{ height: 6px; }
+.token-strip::-webkit-scrollbar-thumb{
+  background: rgba(255,255,255,.14);
+  border-radius: 10px;
+}
+
+/* 토큰 pill (JS가 쓰는 클래스명 그대로) */
+.token-pill{
+  flex: 0 0 auto;
+  display:inline-flex;
+  align-items:center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.04);
+  color: var(--muted);
+  font-size: 12px;
+}
+.token-pill.good{
+  color: rgba(255,255,255,.92);
+  border-color: var(--ok);
+  background: rgba(41,255,198,.06);
+}
+.token-pill.warn{
+  color: rgba(255,255,255,.90);
+  border-color: var(--warn);
+  background: rgba(255,214,10,.05);
+}
+.token-pill.muted{ color: var(--muted); }
+
+/* 화면이 좁아도 "한 줄"을 최대한 유지 (필요시 지갑박스만 줄임) */
+@media (max-width: 980px){
+  .wallet-area{
+    min-width: 360px;
+  }
+  .wallet-addr{
+    max-width: 170px;
+  }
+}
+
+@media (max-width: 760px){
+  .header-nav{
+    display:none; /* 여기서부터는 메뉴가 사라짐(햄버거는 다음 단계에서 원하면 추가) */
+  }
+  .wallet-area{
+    min-width: 320px;
+  }
+}
+/* ===== Responsive header layout (JS 수정 없음) ===== */
+
+/* 기본(데스크탑): 한 줄 */
+.header-inner{
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 12px 14px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap: 14px;
+  flex-wrap: nowrap;
+}
+
+.header-logo{ flex: 0 0 auto; }
+.header-nav{ flex: 0 1 auto; }
+.wallet-area{ flex: 0 0 auto; }
+
+/* 토큰바: JS가 is-connected 붙일 때만 노출 */
+.token-strip{ display:none; }
+.wallet-area.is-connected .token-strip{ display:flex; }
+
+/* ===== 980px 이하: 메뉴를 아래로 내리고 지갑을 100% 폭으로 ===== */
+@media (max-width: 980px){
+  .header-inner{
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  /* 1행: 로고 + (지갑연결 버튼/주소/상태) */
+  .header-logo{
+    order: 1;
+  }
+
+  .wallet-area{
+    order: 2;
+    width: 100%;
+    min-width: 0;          /* 기존 min-width 때문에 깨지는 것 방지 */
+  }
+
+  /* 2행: 메뉴 전체 폭 */
+  .header-nav{
+    order: 3;
+    width: 100%;
+    justify-content: flex-start;
+    overflow-x: auto;
+    white-space: nowrap;
+    padding: 6px;
+  }
+}
+
+/* ===== 560px 이하: 지갑 상단(주소/버튼/상태)을 촘촘하게 ===== */
+@media (max-width: 560px){
+  .wallet-top{
+    gap: 8px;
+  }
+
+  .wallet-addr{
+    max-width: 140px;      /* 너무 길면 ... 처리 */
+  }
+
+  .btn.btn-primary{
+    padding: 8px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+  }
+
+  .wallet-status{
+    font-size: 11px;
+  }
+
+  /* 토큰바는 계속 한 줄 + 스크롤 */
+  .token-strip{
+    gap: 6px;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+}

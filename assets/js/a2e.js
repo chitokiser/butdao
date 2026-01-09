@@ -1,4 +1,4 @@
-// /assets/js/a2e.js
+// /assets/js/a2e.js  (ethers v6 compatible)
 (function () {
   const $ = (s) => document.querySelector(s);
 
@@ -17,18 +17,34 @@
   }
   window.uiToast = toast;
 
+  function asUserMessage(e) {
+    return (
+      e?.reason ||
+      e?.shortMessage ||
+      e?.message ||
+      (typeof e === "string" ? e : "") ||
+      "실패"
+    );
+  }
+
   function fmtUnits(v, dec = 18, digits = 4) {
     try {
-      const s = ethers.utils.formatUnits(v, dec);
+      // v6: ethers.formatUnits(value, decimals)
+      const s = window.ethers.formatUnits(v, dec);
       return Number(s).toLocaleString(undefined, { maximumFractionDigits: digits });
     } catch {
-      return String(v);
+      try {
+        return String(v);
+      } catch {
+        return "-";
+      }
     }
   }
 
   function fmtTime(sec) {
-    if (!sec) return "-";
-    const d = new Date(Number(sec) * 1000);
+    const n = Number(sec || 0);
+    if (!n) return "-";
+    const d = new Date(n * 1000);
     return d.toLocaleString();
   }
 
@@ -41,7 +57,8 @@
   }
 
   function getA2E(signerOrProvider) {
-    return new ethers.Contract(APP.contracts.a2e, APP.a2eAbi, signerOrProvider);
+    // APP.contracts.a2e, APP.a2eAbi 는 config.js에서 주입되어야 함
+    return new window.ethers.Contract(APP.contracts.a2e, APP.a2eAbi, signerOrProvider);
   }
 
   function escapeHtml(s) {
@@ -54,7 +71,7 @@
   }
 
   // ============================================
-  // Firestore: mission guide (admin에서 저장한 값 표시)
+  // Firebase
   // ============================================
 
   function firebaseReady() {
@@ -62,7 +79,6 @@
   }
 
   function guideCollectionName() {
-    // config.js에서 바꾸고 싶으면 APP.ads.missionGuideCollection="mission_guides" 같은 식으로 넣어도 됨
     if (APP.ads && APP.ads.missionGuideCollection) return APP.ads.missionGuideCollection;
     if (APP.firestore && APP.firestore.missionGuides) return APP.firestore.missionGuides;
     return "mission_guides";
@@ -105,7 +121,6 @@
   }
 
   async function applyGuidesToUI() {
-    // 카드가 렌더된 후 호출되어야 함
     const missions = APP.missions || [];
     if (missions.length === 0) return;
 
@@ -113,7 +128,6 @@
       const el = document.getElementById(`guide_${ms.id}`);
       if (!el) continue;
 
-      // Firestore 가이드가 있으면 우선 적용, 없으면 기존 config.js guide 유지
       const g = await loadGuideFromFirestore(ms.id);
       if (g) {
         el.innerHTML = escapeHtml(g).replaceAll("\n", "<br/>");
@@ -124,7 +138,53 @@
   }
 
   // ============================================
-  // 기존 기능: 내 정보 로드
+  // WALLET (v6에서 직접 보장)
+  // ============================================
+
+  window.WALLET = window.WALLET || {
+    provider: null,
+    signer: null,
+    address: null,
+  };
+
+  async function ensureWalletConnected() {
+    if (!window.ethereum) throw new Error("MetaMask/Rabby 지갑이 필요합니다.");
+    const ethers = window.ethers;
+
+    const provider = new ethers.BrowserProvider(window.ethereum);
+    await provider.send("eth_requestAccounts", []);
+    const signer = await provider.getSigner();
+    const address = await signer.getAddress();
+
+    WALLET.provider = provider;
+    WALLET.signer = signer;
+    WALLET.address = address;
+
+    return WALLET;
+  }
+
+  async function tryLoadConnectedAccount() {
+    try {
+      if (!window.ethereum) return null;
+      const ethers = window.ethers;
+
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const accounts = await provider.send("eth_accounts", []);
+      const addr = accounts && accounts[0] ? accounts[0] : null;
+      if (!addr) return null;
+
+      const signer = await provider.getSigner();
+      WALLET.provider = provider;
+      WALLET.signer = signer;
+      WALLET.address = addr;
+      return WALLET;
+    } catch {
+      return null;
+    }
+  }
+
+  // ============================================
+  // 내 정보 로드
   // ============================================
 
   async function loadMe() {
@@ -137,35 +197,43 @@
     const cfgPrice = $("#cfgPrice");
     const staffBadge = $("#staffBadge");
 
+    if (!meWallet || !meId || !meLevel || !meUntil || !mePay || !poolBal || !cfgPrice || !staffBadge) return;
+
     if (!WALLET.provider || !WALLET.address) {
       meWallet.textContent = "-";
       meId.textContent = "-";
+      meLevel.textContent = "-";
+      meUntil.textContent = "-";
+      mePay.textContent = "-";
+      poolBal.textContent = "-";
       return;
     }
+
     meWallet.textContent = WALLET.address;
 
     const a2eRead = getA2E(WALLET.provider);
-    const [id, price, pool] = await Promise.all([
+
+    const [idRaw, price, pool] = await Promise.all([
       a2eRead.idOf(WALLET.address),
       a2eRead.price(),
       a2eRead.contractHexBalance(),
     ]);
 
-    cfgPrice.textContent = `회비: ${fmtUnits(price, 18, 4)} HEX`;
-
-    const idNum = id.toNumber();
+    const idNum = Number(idRaw || 0);
     meId.textContent = String(idNum);
 
-    // staff?
-    const lvl = await a2eRead.staff(WALLET.address).catch(() => 0);
-    if (Number(lvl) >= 5) {
+    cfgPrice.textContent = `회비: ${fmtUnits(price, 18, 4)} HEX`;
+    poolBal.textContent = `${fmtUnits(pool, 18, 4)} HEX`;
+
+    // staff level
+    const lvlRaw = await a2eRead.staff(WALLET.address).catch(() => 0);
+    const lvl = Number(lvlRaw || 0);
+    if (lvl >= 5) {
       staffBadge.style.display = "";
       staffBadge.textContent = `스태프(${lvl})`;
     } else {
       staffBadge.style.display = "none";
     }
-
-    poolBal.textContent = `${fmtUnits(pool, 18, 4)} HEX`;
 
     if (idNum === 0) {
       meLevel.textContent = "미가입";
@@ -175,13 +243,19 @@
     }
 
     const info = await a2eRead.myInfo(idNum);
-    meLevel.textContent = String(info.level);
-    meUntil.textContent = fmtTime(info.memberUntil);
-    mePay.textContent = `${fmtUnits(info.mypay, 18, 4)} HEX`;
+
+    // v6 Result: info.level 또는 info[2] 형태 모두 대응
+    const level = Number(info?.level ?? info?.[2] ?? 0);
+    const memberUntil = Number(info?.memberUntil ?? info?.[6] ?? 0);
+    const mypay = info?.mypay ?? info?.[4] ?? 0;
+
+    meLevel.textContent = String(level);
+    meUntil.textContent = fmtTime(memberUntil);
+    mePay.textContent = `${fmtUnits(mypay, 18, 4)} HEX`;
   }
 
   // ============================================
-  // 기존 기능: 미션 렌더
+  // 미션 렌더
   // ============================================
 
   async function renderMissions() {
@@ -232,19 +306,21 @@
   }
 
   // ============================================
-  // 기존 기능: 미션 상태/가격 갱신
+  // 미션 상태/가격 갱신
   // ============================================
 
   async function refreshMissionStatuses() {
     if (!WALLET.provider || !WALLET.address) return;
 
     const a2e = getA2E(WALLET.provider);
-    const id = await a2e.idOf(WALLET.address);
-    const idNum = id.toNumber();
+    const idRaw = await a2e.idOf(WALLET.address);
+    const idNum = Number(idRaw || 0);
 
     // 가격 표시(가입 전에도 가능)
     for (const ms of APP.missions) {
       const pEl = document.getElementById(`p_${ms.id}`);
+      if (!pEl) continue;
+
       try {
         const p = await a2e.adprice(ms.id);
         pEl.textContent = `${fmtUnits(p, 18, 4)} HEX`;
@@ -254,7 +330,6 @@
     }
 
     if (idNum === 0) {
-      // 미가입이면 상태만 기본 표시
       for (const ms of APP.missions) {
         const st = document.getElementById(`st_${ms.id}`);
         if (st) st.innerHTML = `<span class="badge">미가입</span>`;
@@ -265,14 +340,18 @@
     for (const ms of APP.missions) {
       try {
         const ci = await a2e.claimInfo(idNum, ms.id);
-        const status = Number(ci.status);
+
+        const status = Number(ci?.status ?? ci?.[0] ?? 0);
+        const reqAt = Number(ci?.reqAt ?? ci?.[1] ?? 0);
+        const lastAt = Number(ci?.lastAt ?? ci?.[3] ?? 0);
+
         const st = document.getElementById(`st_${ms.id}`);
         const r = document.getElementById(`r_${ms.id}`);
         const l = document.getElementById(`l_${ms.id}`);
 
         if (st) st.innerHTML = statusBadge(status);
-        if (r) r.textContent = ci.reqAt && Number(ci.reqAt) > 0 ? fmtTime(ci.reqAt) : "-";
-        if (l) l.textContent = ci.lastAt && Number(ci.lastAt) > 0 ? fmtTime(ci.lastAt) : "-";
+        if (r) r.textContent = reqAt > 0 ? fmtTime(reqAt) : "-";
+        if (l) l.textContent = lastAt > 0 ? fmtTime(lastAt) : "-";
       } catch (e) {
         const st = document.getElementById(`st_${ms.id}`);
         if (st) st.innerHTML = `<span class="badge bad">조회 실패</span>`;
@@ -281,26 +360,31 @@
   }
 
   // ============================================
-  // 기존 기능: Join/Renew/Withdraw
+  // Join/Renew/Withdraw
   // ============================================
+
+  async function walletRefreshHex() {
+    // 기존 프로젝트에 이 함수가 있으면 호출되도록 유지
+    if (typeof window.walletRefreshHex === "function") return window.walletRefreshHex();
+  }
 
   async function onClickJoin() {
     try {
       if (!WALLET.signer) throw new Error("지갑을 연결해 주세요.");
-      const mento = ($("#inpMento").value || "").trim();
-      if (!ethers.utils.isAddress(mento)) throw new Error("멘토 주소가 올바르지 않습니다.");
+      const mento = ($("#inpMento")?.value || "").trim();
+      if (!window.ethers.isAddress(mento)) throw new Error("멘토 주소가 올바르지 않습니다.");
 
       const a2e = getA2E(WALLET.signer);
 
-      // join은 컨트랙트가 transferFrom을 하므로, HEX approve가 필요할 수 있음
       const hexAddr = await a2e.hexToken();
-      const hex = new ethers.Contract(hexAddr, APP.erc20Abi, WALLET.signer);
+      const hex = new window.ethers.Contract(hexAddr, APP.erc20Abi, WALLET.signer);
 
       const price = await a2e.price();
       const allowance = await hex.allowance(WALLET.address, APP.contracts.a2e);
-      if (allowance.lt(price)) {
+
+      if (allowance < price) {
         toast("회비 결제를 위해 HEX 승인(approve)이 필요합니다. 승인 진행합니다.", "info");
-        const txa = await hex.approve(APP.contracts.a2e, ethers.constants.MaxUint256);
+        const txa = await hex.approve(APP.contracts.a2e, window.ethers.MaxUint256);
         await txa.wait();
       }
 
@@ -312,7 +396,7 @@
       await walletRefreshHex();
       await loadMe();
       await refreshMissionStatuses();
-      await applyGuidesToUI(); // 가입 후에도 가이드 유지
+      await applyGuidesToUI();
     } catch (e) {
       toast(asUserMessage(e), "error", "Join 실패");
     }
@@ -321,28 +405,30 @@
   async function onClickRenew() {
     try {
       if (!WALLET.signer) throw new Error("지갑을 연결해 주세요.");
-      const months = Number(($("#inpMonths").value || "1").trim());
+      const months = Number(($("#inpMonths")?.value || "1").trim());
       if (!Number.isFinite(months) || months <= 0) throw new Error("개월 수가 올바르지 않습니다.");
 
       const a2e = getA2E(WALLET.signer);
-      const id = await a2e.idOf(WALLET.address);
-      const idNum = id.toNumber();
+      const idRaw = await a2e.idOf(WALLET.address);
+      const idNum = Number(idRaw || 0);
       if (idNum === 0) throw new Error("먼저 가입(Join)하세요.");
 
       const hexAddr = await a2e.hexToken();
-      const hex = new ethers.Contract(hexAddr, APP.erc20Abi, WALLET.signer);
+      const hex = new window.ethers.Contract(hexAddr, APP.erc20Abi, WALLET.signer);
 
       const price = await a2e.price();
-      const need = price.mul(months);
+      const need = price * BigInt(months);
 
       const allowance = await hex.allowance(WALLET.address, APP.contracts.a2e);
-      if (allowance.lt(need)) {
+      if (allowance < need) {
         toast("갱신 결제를 위해 HEX 승인(approve)이 필요합니다. 승인 진행합니다.", "info");
-        const txa = await hex.approve(APP.contracts.a2e, ethers.constants.MaxUint256);
+        const txa = await hex.approve(APP.contracts.a2e, window.ethers.MaxUint256);
         await txa.wait();
       }
 
       toast("Renew 트랜잭션 전송...", "info");
+      // 기존 함수명이 renew인지 payMembership인지 컨트랙트 ABI에 따라 다를 수 있음
+      // 원본 코드가 a2e.renew(...)를 호출하므로 그대로 유지
       const tx = await a2e.renew(idNum, months);
       await tx.wait();
 
@@ -360,8 +446,8 @@
     try {
       if (!WALLET.signer) throw new Error("지갑을 연결해 주세요.");
       const a2e = getA2E(WALLET.signer);
-      const id = await a2e.idOf(WALLET.address);
-      const idNum = id.toNumber();
+      const idRaw = await a2e.idOf(WALLET.address);
+      const idNum = Number(idRaw || 0);
       if (idNum === 0) throw new Error("미가입 상태입니다.");
 
       toast("Withdraw 트랜잭션 전송...", "info");
@@ -379,7 +465,7 @@
   }
 
   // ============================================
-  // 기존 기능: proof url netlify save 함수 (원본 유지)
+  // proof url netlify save
   // ============================================
 
   async function saveProofUrlToNetlify({ proofHash, url, chainId, contract, owner, id, missionId, txHash }) {
@@ -400,7 +486,7 @@
   }
 
   // ============================================
-  // 기존 기능: 미션 버튼 바인딩 (claim/cancel)
+  // 미션 버튼 바인딩
   // ============================================
 
   async function bindMissionButtons() {
@@ -414,21 +500,18 @@
             if (!WALLET.signer) throw new Error("지갑을 연결해 주세요.");
             const a2e = getA2E(WALLET.signer);
 
-            const id = await a2e.idOf(WALLET.address);
-            const idNum = id.toNumber();
+            const idRaw = await a2e.idOf(WALLET.address);
+            const idNum = Number(idRaw || 0);
             if (idNum === 0) throw new Error("먼저 가입하세요.");
 
-            const txt = (document.getElementById(`proof_${ms.id}`).value || "").trim();
+            const txt = (document.getElementById(`proof_${ms.id}`)?.value || "").trim();
             if (!txt) throw new Error("proof 텍스트를 입력하세요.");
 
-            const proof = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(txt));
+            const proof = window.ethers.keccak256(window.ethers.toUtf8Bytes(txt));
 
             toast(`미션 #${ms.id} 청구 전송...`, "info");
             const tx = await a2e.claim(idNum, ms.id, proof);
             await tx.wait();
-
-            // netlify 저장은 기존 흐름 유지(원하면 여기서 saveProofUrlToNetlify 호출 확장 가능)
-            // 예: await saveProofUrlToNetlify({ proofHash: proof, url: txt, ... })
 
             toast("청구 완료: 심사중 표시됩니다.", "ok");
             await refreshMissionStatuses();
@@ -444,8 +527,8 @@
             if (!WALLET.signer) throw new Error("지갑을 연결해 주세요.");
             const a2e = getA2E(WALLET.signer);
 
-            const id = await a2e.idOf(WALLET.address);
-            const idNum = id.toNumber();
+            const idRaw = await a2e.idOf(WALLET.address);
+            const idNum = Number(idRaw || 0);
             if (idNum === 0) throw new Error("미가입 상태입니다.");
 
             toast(`미션 #${ms.id} 청구취소 전송...`, "info");
@@ -463,41 +546,63 @@
   }
 
   // ============================================
-  // 기존 기능: 지갑 연결 콜백
+  // 헤더/다른 스크립트에서 호출할 수 있게 유지
   // ============================================
 
   window.onWalletConnected = async function () {
     await loadMe();
     await refreshMissionStatuses();
-    await applyGuidesToUI(); // 지갑 연결 후 가이드도 덮어쓰기
+    await applyGuidesToUI();
   };
 
   // ============================================
-  // 초기 부팅
+  // 부팅
   // ============================================
 
   document.addEventListener("DOMContentLoaded", async () => {
-    // 지갑 UI 요소 추가(헤더가 head.html에 있을 경우)
-    const addrEl = document.getElementById("wallet-addr");
-    if (addrEl && WALLET.address) addrEl.textContent = WALLET.address;
-
     await renderMissions();
-
-    // 카드가 그려진 뒤에 Firestore 가이드 덮어쓰기
     await applyGuidesToUI();
-
     await bindMissionButtons();
 
-    // 버튼 바인딩
     $("#btnJoin")?.addEventListener("click", onClickJoin);
     $("#btnRenew")?.addEventListener("click", onClickRenew);
     $("#btnWithdraw")?.addEventListener("click", onClickWithdraw);
 
-    // 지갑이 이미 연결되어 있으면 즉시 로드
+    // 헤더 삽입 후 주소 표시(가능하면)
+    const addrEl = document.getElementById("wallet-addr");
+    if (addrEl && WALLET.address) addrEl.textContent = WALLET.address;
+
+    // 이미 연결된 계정이 있으면 즉시 로드
+    await tryLoadConnectedAccount();
     if (WALLET.provider && WALLET.address) {
       await loadMe();
       await refreshMissionStatuses();
       await applyGuidesToUI();
+    }
+
+    // 지갑 변경 감지 -> 자동 갱신
+    if (window.ethereum?.on) {
+      window.ethereum.on("accountsChanged", async (accounts) => {
+        const a = accounts && accounts[0] ? accounts[0] : null;
+        if (!a) {
+          WALLET.provider = null;
+          WALLET.signer = null;
+          WALLET.address = null;
+          await loadMe();
+          return;
+        }
+        await tryLoadConnectedAccount();
+        await loadMe();
+        await refreshMissionStatuses();
+        await applyGuidesToUI();
+      });
+
+      window.ethereum.on("chainChanged", async () => {
+        await tryLoadConnectedAccount();
+        await loadMe();
+        await refreshMissionStatuses();
+        await applyGuidesToUI();
+      });
     }
   });
 })();
