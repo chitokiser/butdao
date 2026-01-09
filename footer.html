@@ -1,26 +1,4 @@
-<footer id="footer">
-  <div class="footer-inner">
-    <img src="/assets/img/but.png" alt="PAW" class="footer-logo" />
-
-    <span class="footer-text">
-      web3 글로벌 마켓팅 플랫폼
-      <a
-        href="https://hexdao.netlify.app/"
-        target="_blank"
-        rel="noopener noreferrer"
-        class="footer-link"
-      >
-       <img src="/assets/img/hutlogo64_64.png" alt="HEXDAO" class="hexdao-logo" />
-        우리들의 토큰거래소
-      </a>
-    </span>
-  </div>
-</footer>
-<!-- /partials/footer.html -->
-<!-- NOTE:
-  - Font Awesome CSS는 footer.html 안에 넣지 말고 head.html(공통 head)로 옮기는 것을 권장합니다.
-  - 그래도 일단 “footer만 붙여도 동작”하게 하려면 아래처럼 footer 안에 둬도 됩니다.
--->
+<!-- /partials/footer.html (전체 교체) -->
 
 <link
   rel="stylesheet"
@@ -28,19 +6,18 @@
 />
 
 <style>
-  .footer-wrap{
+  .be-footer-wrap{
     margin-top:38px;
-    border-top:1px solid var(--line2);
-    background: linear-gradient(180deg, rgba(0,0,0,.02), rgba(0,0,0,.00));
+    border-top:1px solid rgba(255,255,255,.10);
+    background: linear-gradient(180deg, rgba(0,0,0,.20), rgba(0,0,0,.00));
   }
-  .footer-inner{
+  .be-footer-inner{
     max-width:1100px;
     margin:0 auto;
     padding:22px 18px;
   }
 
-  /* 상단 영역: 로고/문구 + 링크 */
-  .footer-top{
+  .be-footer-top{
     display:flex;
     align-items:flex-start;
     justify-content:space-between;
@@ -48,51 +25,74 @@
     flex-wrap:wrap;
   }
 
-  .footer-left{
+  .be-footer-left{
     display:flex;
     align-items:center;
     gap:12px;
     min-width:260px;
   }
 
-  .footer-logo{
-    width:40px;
-    height:40px;
-    border-radius:12px;
-    border:1px solid rgba(0,0,0,.12);
-    background:#fff;
+  .be-footer-logoBox{
+    width:44px;
+    height:44px;
+    border-radius:14px;
+    border:1px solid rgba(255,255,255,.14);
+    background: rgba(255,255,255,.08);
     display:flex;
     align-items:center;
     justify-content:center;
     overflow:hidden;
     flex:0 0 auto;
   }
-  .footer-logo img{
+  .be-footer-logoBox img{
     width:78%;
     height:auto;
     display:block;
   }
 
-  .footer-brand{
+  .be-footer-brand{
     display:flex;
     flex-direction:column;
     gap:3px;
+    min-width:0;
   }
-  .footer-title{
+  .be-footer-title{
     font-size:14px;
     font-weight:900;
     letter-spacing:.2px;
     line-height:1.2;
   }
-  .footer-sub{
+  .be-footer-sub{
     font-size:12px;
-    color:var(--muted);
+    opacity:.78;
     line-height:1.4;
-    max-width:520px;
+    max-width:560px;
   }
 
-  /* 링크 영역 */
-  .footer-links{
+  .be-footer-sub a{
+    text-decoration:none;
+    color:inherit;
+  }
+
+  .be-hexdao-inline{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    margin-left:8px;
+    padding:4px 10px;
+    border-radius:999px;
+    background: rgba(255,255,255,.08);
+    border:1px solid rgba(255,255,255,.12);
+    white-space:nowrap;
+  }
+  .be-hexdao-inline img{
+    width:18px;
+    height:18px;
+    border-radius:6px;
+    display:block;
+  }
+
+  .be-footer-links{
     display:flex;
     gap:8px;
     flex-wrap:wrap;
@@ -100,109 +100,125 @@
     justify-content:flex-end;
   }
 
-  .footer-links a{
+  .be-footer-links a{
     text-decoration:none;
-    color:#111;
+    color:rgba(255,255,255,.92);
     font-size:12px;
-    border:1px solid rgba(0,0,0,.12);
-    background:rgba(255,255,255,.9);
+    border:1px solid rgba(255,255,255,.14);
+    background:rgba(255,255,255,.06);
     padding:8px 10px;
     border-radius:12px;
     display:inline-flex;
     align-items:center;
     gap:8px;
-    transition: transform .08s ease, background .12s ease;
+    transition: transform .08s ease, background .12s ease, border-color .12s ease;
     white-space:nowrap;
   }
-  .footer-links a:hover{
+  .be-footer-links a:hover{
     transform: translateY(-1px);
-    background:#fff;
+    background:rgba(255,255,255,.10);
+    border-color: rgba(255,255,255,.22);
   }
 
-  .footer-links a i{
-    font-size:14px;
+  .be-footer-links a i{ font-size:14px; }
+
+  .be-footer-links a.be-cta{
+    border-color: rgba(255,255,255,.26);
+    background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.05));
   }
 
-  /* 강조 버튼(공식커뮤니티) */
-  .footer-links a.footer-cta{
-    border-color: rgba(0,0,0,.22);
-    background: linear-gradient(180deg, rgba(0,0,0,.04), rgba(0,0,0,.01));
-  }
-
-  /* 구분선 + 카피 */
-  .footer-bottom{
+  .be-footer-bottom{
     margin-top:14px;
     padding-top:14px;
-    border-top:1px dashed rgba(0,0,0,.12);
+    border-top:1px dashed rgba(255,255,255,.14);
     display:flex;
     align-items:center;
     justify-content:space-between;
     gap:10px;
     flex-wrap:wrap;
   }
-  .footer-copy{
-    font-size:12px;
-    color:var(--muted);
-  }
-  .footer-mini{
+
+  .be-footer-mini{
     display:flex;
     align-items:center;
     gap:8px;
-    color:var(--muted);
+    opacity:.78;
     font-size:12px;
+    flex-wrap:wrap;
   }
-  .footer-dot{
-    width:4px;height:4px;border-radius:999px;background:rgba(0,0,0,.25);
+  .be-dot{
+    width:4px;height:4px;border-radius:999px;
+    background:rgba(255,255,255,.35);
     display:inline-block;
   }
 
+  .be-footer-copy{
+    font-size:12px;
+    opacity:.72;
+  }
+
   @media (max-width:720px){
-    .footer-links{justify-content:flex-start}
-    .footer-bottom{justify-content:flex-start}
-    .footer-left{min-width:auto}
+    .be-footer-links{justify-content:flex-start}
+    .be-footer-bottom{justify-content:flex-start}
+    .be-footer-left{min-width:auto}
+    .be-footer-sub{max-width:100%}
   }
 </style>
 
-<div class="footer-wrap">
-  <div class="footer-inner">
+<footer class="be-footer-wrap" id="footer">
+  <div class="be-footer-inner">
 
-    <div class="footer-top">
-      <div class="footer-left">
-        <div class="footer-logo" aria-hidden="true">
-          <!-- HEXDAO 로고 경로 -->
-          <img src="assets/images/tokens/hut.png" alt="HEX DAO 로고">
+    <div class="be-footer-top">
+      <div class="be-footer-left">
+        <div class="be-footer-logoBox" aria-hidden="true">
+          <img src="/assets/img/but.png" alt="BlueEco DAO" />
         </div>
 
-        <div class="footer-brand">
-          <div class="footer-title">HEX DAO</div>
-          <div class="footer-sub">실물 사업을 Web3로 자동 증폭시키는 금융·운영 플랫폼</div>
+        <div class="be-footer-brand">
+          <div class="be-footer-title">BlueEco DAO</div>
+          <div class="be-footer-sub">
+            web3 글로벌 마켓팅 플랫폼
+            <a
+              href="https://hexdao.netlify.app/"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="be-hexdao-inline"
+              aria-label="HEXDAO 토큰거래소"
+            >
+              <img src="/assets/img/hutlogo64_64.png" alt="HEXDAO" />
+              우리들의 토큰거래소
+            </a>
+          </div>
         </div>
       </div>
 
-      <div class="footer-links">
-        <a href="intro.html">
+      <div class="be-footer-links">
+        <a href="/intro.html">
           <i class="fa-solid fa-circle-info"></i>
           소개
         </a>
 
-        <!-- 백서 -->
+        <a href="https://hexdao.netlify.app/" target="_blank" rel="noreferrer">
+          <i class="fa-solid fa-right-left"></i>
+          HEXDAO DEX
+        </a>
+
         <a href="/assets/docs/HEX%20DAO%20WHITEPAPER%20v1.pdf" target="_blank" rel="noreferrer">
           <i class="fa-solid fa-file-lines"></i>
           백서(PDF)
         </a>
 
-        <a href="https://github.com/chitokiser/hexdao/" target="_blank" rel="noreferrer">
+        <a href="https://github.com/chitokiser/butdao/" target="_blank" rel="noreferrer">
           <i class="fa-brands fa-github"></i>
           Github
         </a>
 
-        <!-- Facebook 공식 커뮤니티 -->
         <a
           href="https://www.facebook.com/groups/1453946632758823"
           target="_blank"
           rel="noreferrer"
-          class="footer-cta"
-          aria-label="HEX DAO Facebook 공식 커뮤니티"
+          class="be-cta"
+          aria-label="Facebook 공식 커뮤니티"
         >
           <i class="fa-brands fa-facebook"></i>
           공식커뮤니티
@@ -210,15 +226,10 @@
       </div>
     </div>
 
-    <div class="footer-bottom">
-      <div class="footer-mini">
-        <span>Dual Listing</span><span class="footer-dot"></span>
-        <span>PancakeSwap + HEXDAO DEX</span><span class="footer-dot"></span>
-        <span>CoinGecko → CEX 확장</span>
-      </div>
+   
 
-      <div class="footer-copy">© 2025 HEXDAO. All rights reserved.</div>
+      <div class="be-footer-copy">© 2025 BlueEco DAO. All rights reserved.</div>
     </div>
 
   </div>
-</div>
+</footer>
