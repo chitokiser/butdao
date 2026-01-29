@@ -1,299 +1,183 @@
 // /assets/js/ad_request.js
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-import {
-  getFirestore, collection, addDoc, serverTimestamp, updateDoc, doc
-} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
-import {
-  getAuth, signInAnonymously
-} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+/* ethers v6 (UMD) + firebase compat */
 
-const $ = (id) => document.getElementById(id);
+(function () {
+  const $ = (id) => document.getElementById(id);
 
-const CFG = window.APP;
-const ADS = CFG.ads;
-
-const SERVICES = ADS.services;
-const ORDERS_COL = ADS.ordersCollection;
-
-const PAY = ADS.payment;
-const HEX_TOKEN = PAY.tokenAddress;
-const A2E_RECEIVER = PAY.receiver;
-const OPBNB_CHAIN_ID = PAY.chainId;
-
-const ERC20_ABI = [
-  "function decimals() view returns (uint8)",
-  "function symbol() view returns (string)",
-  "function balanceOf(address) view returns (uint256)",
-  "function transfer(address to, uint256 amount) returns (bool)"
-];
-
-const app = initializeApp(CFG.firebase);
-const db = getFirestore(app);
-const auth = getAuth(app);
-
-async function ensureAuth() {
-  try {
-    if (auth.currentUser) return auth.currentUser;
-    const cred = await signInAnonymously(auth);
-    return cred.user;
-  } catch (e) {
-    console.warn("anonymous auth failed:", e);
-    return null;
-  }
-}
-
-function renderTable() {
-  const body = $("svcBody");
-  body.innerHTML = "";
-
-  for (const s of SERVICES) {
-    const tr = document.createElement("tr");
-    const priceText = (s.pricePaw == null) ? "미설정" : String(s.pricePaw);
-
-    tr.innerHTML = `
-      <td><span class="chip">${s.id}</span></td>
-      <td>${s.name}</td>
-      <td class="muted">${s.base}</td>
-      <td class="muted">${s.required}</td>
-      <td class="right"><span class="price">${priceText}</span></td>
-      <td class="right"><button class="btn" data-order="${s.id}">주문하기</button></td>
-    `;
-    body.appendChild(tr);
+  function setStatus(msg) {
+    const el = $("mStatus");
+    if (el) el.textContent = msg || "";
   }
 
-  body.querySelectorAll("button[data-order]").forEach((btn) => {
-    btn.addEventListener("click", () => openModal(Number(btn.getAttribute("data-order"))));
-  });
-}
-
-let selectedService = null;
-
-function openModal(serviceId) {
-  selectedService = SERVICES.find(x => x.id === serviceId);
-  if (!selectedService) return;
-
-  $("mTitle").textContent = `주문 요청 — [${selectedService.id}] ${selectedService.name}`;
-  $("mDesc").textContent = `기본 제공: ${selectedService.base}`;
-
-  $("mContact").value = "";
-  $("mRequired").value = "";
-  $("mLink").value = "";
-  $("mMemo").value = "";
-
-  $("mStatus").textContent = "";
-  $("modalBack").style.display = "flex";
-
-  // 결제 버튼 텍스트
-  $("btnSubmit").textContent = `${PAY.tokenSymbol} ${selectedService.pricePaw} 결제 및 주문`;
-}
-
-function closeModal() {
-  $("modalBack").style.display = "none";
-}
-
-function safeTrim(v) {
-  return String(v || "").trim();
-}
-
-function isValidUrlMaybe(v) {
-  const s = safeTrim(v);
-  if (!s) return true;
-  try {
-    const u = new URL(s);
-    return u.protocol === "http:" || u.protocol === "https:";
-  } catch {
-    return false;
-  }
-}
-
-function txUrl(hash) {
-  return PAY.explorerTx + hash;
-}
-
-async function ensureWalletOnOpBNB(provider) {
-  const net = await provider.getNetwork();
-  if (Number(net.chainId) === OPBNB_CHAIN_ID) return;
-
-  // opBNB 체인 전환(204 = 0xCC)
-  await window.ethereum.request({
-    method: "wallet_switchEthereumChain",
-    params: [{ chainId: "0xCC" }]
-  });
-}
-
-async function payHexAndGetReceipt(amountHuman) {
-  if (!window.ethereum || !window.ethers) {
-    throw new Error("지갑(메타마스크/라비)을 설치/연결해 주세요.");
+  function getOrdersCollection() {
+    return (window.APP && APP.ads && APP.ads.ordersCollection) ? APP.ads.ordersCollection : "ad_orders";
   }
 
-  const provider = new ethers.providers.Web3Provider(window.ethereum, "any");
-  await provider.send("eth_requestAccounts", []);
-  await ensureWalletOnOpBNB(provider);
-
-  const signer = provider.getSigner();
-  const payer = await signer.getAddress();
-
-  // HexStableToken 컨트랙트
-  const token = new ethers.Contract(HEX_TOKEN, ERC20_ABI, signer);
-
-  // decimals(없으면 18로)
-  const dec = await token.decimals().catch(() => PAY.decimalsFallback);
-  const sym = await token.symbol().catch(() => PAY.tokenSymbol);
-
-  // 결제 금액을 토큰 최소단위로 변환
-  const amountWei = ethers.utils.parseUnits(String(amountHuman), Number(dec));
-
-  // 잔액 체크
-  const bal = await token.balanceOf(payer);
-  if (bal.lt(amountWei)) throw new Error(`${sym} 잔액이 부족합니다.`);
-
-  // 여기서 “HexStableToken.sol 함수”를 호출하는 것 = transfer()
-  // 받는 곳: 0x0f9a94A3...
-  const tx = await token.transfer(A2E_RECEIVER, amountWei);
-  const receipt = await tx.wait();
-
-  return {
-    payer,
-    chainId: (await provider.getNetwork()).chainId,
-    token: sym,
-    tokenAddress: HEX_TOKEN,
-    to: A2E_RECEIVER,
-    amountWei: amountWei.toString(),
-    amountHuman: String(amountHuman),
-    txHash: tx.hash,
-    txUrl: txUrl(tx.hash),
-    blockNumber: receipt.blockNumber
-  };
-}
-
-
-
-async function submitOrder() {
-  const statusEl = $("mStatus");
-  const btn = $("btnSubmit");
-
-  statusEl.textContent = "";
-  statusEl.className = "muted";
-  btn.disabled = true;
-
-  try {
-    if (!selectedService) throw new Error("서비스 선택 오류");
-
-    const contact = safeTrim($("mContact").value);
-    const required = safeTrim($("mRequired").value);
-    const link = safeTrim($("mLink").value);
-    const memo = safeTrim($("mMemo").value);
-
-    if (contact.length < 3) throw new Error("연락처를 입력하세요.");
-    if (required.length < 3) throw new Error("필수 제공사항을 입력하세요.");
-    if (!isValidUrlMaybe(link)) throw new Error("추가 참고 링크는 http/https URL만 가능합니다.");
-
-    const user = await ensureAuth();
-
-    // 1) 주문 문서 생성
-    statusEl.textContent = "주문 저장 중...";
-    const orderDoc = {
-      serviceId: selectedService.id,
-      serviceName: selectedService.name,
-      pricePaw: selectedService.pricePaw ?? null,
-
-      contact,
-      required,
-      link: link || null,
-      memo: memo || null,
-
-      status: "REQUESTED",
-      payment: {
-        chainId: null,
-        token: PAY.tokenSymbol,
-        tokenAddress: HEX_TOKEN,
-        to: A2E_RECEIVER,
-        amountWei: null,
-        amountHuman: String(selectedService.pricePaw),
-        payer: null,
-        txHash: null,
-        txUrl: null,
-        blockNumber: null,
-        paidAt: null
-      },
-
-      client: {
-        uid: user ? user.uid : null,
-        userAgent: navigator.userAgent || "",
-        lang: navigator.language || ""
-      },
-
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp()
-    };
-
-    const ref = await addDoc(collection(db, ORDERS_COL), orderDoc);
-
-    // 2) 결제 진행
-    statusEl.textContent = "지갑 결제 진행 중... (HEX 전송)";
-    const pay = await payHexAndGetReceipt(selectedService.pricePaw);
-
-    // 3) 결제 영수증 링크 DB 업데이트
-    statusEl.textContent = "결제 확인 중... DB 업데이트";
-    await updateDoc(doc(db, ORDERS_COL, ref.id), {
-      status: "PAID",
-      "payment.chainId": pay.chainId,
-      "payment.token": pay.token,
-      "payment.tokenAddress": pay.tokenAddress,
-      "payment.to": pay.to,
-      "payment.amountWei": pay.amountWei,
-      "payment.amountHuman": pay.amountHuman,
-      "payment.payer": pay.payer,
-      "payment.txHash": pay.txHash,
-      "payment.txUrl": pay.txUrl,
-      "payment.blockNumber": pay.blockNumber,
-      "payment.paidAt": serverTimestamp(),
-      updatedAt: serverTimestamp()
-    });
-
-    statusEl.className = "ok";
-    statusEl.textContent = `완료: 결제 영수증 저장됨 (${pay.txUrl})`;
-
-    setTimeout(() => closeModal(), 800);
-  } catch (e) {
-    statusEl.className = "bad";
-    statusEl.textContent = e?.message || String(e);
-  } finally {
-    btn.disabled = false;
+  function ensureApp() {
+    if (!window.APP) throw new Error("config.js(APP)가 로드되지 않았습니다.");
+    if (!APP.firebase) throw new Error("APP.firebase 설정이 없습니다.");
   }
-}
 
-async function refreshTokenInfo() {
-  try {
-    if (!window.ethereum || !window.ethers) {
-      $("tokenInfo").textContent = "지갑 미연결";
+  // Firebase
+  let FB = { ok: false, db: null, auth: null };
+
+  async function initFirebase() {
+    ensureApp();
+    if (!window.firebase) throw new Error("firebase compat 스크립트가 없습니다.");
+
+    if (firebase.apps && firebase.apps.length > 0) {
+      FB.db = firebase.firestore();
+      FB.auth = firebase.auth();
+      FB.ok = true;
       return;
     }
-    const provider = new ethers.providers.Web3Provider(window.ethereum, "any");
-    const token = new ethers.Contract(HEX_TOKEN, ERC20_ABI, provider);
-    const sym = await token.symbol().catch(() => PAY.tokenSymbol);
-    const dec = await token.decimals().catch(() => PAY.decimalsFallback);
-
-    const r = A2E_RECEIVER;
-    $("tokenInfo").textContent = `토큰: ${sym} · decimals: ${dec} · 결제수령: ${r.slice(0, 6)}...${r.slice(-4)}`;
-  } catch {
-    $("tokenInfo").textContent = "토큰 정보 조회 실패";
+    firebase.initializeApp(APP.firebase);
+    FB.db = firebase.firestore();
+    FB.auth = firebase.auth();
+    FB.ok = true;
   }
-}
 
-function bind() {
-  $("btnClose").addEventListener("click", closeModal);
-  $("modalBack").addEventListener("click", (e) => {
-    if (e.target === $("modalBack")) closeModal();
+  async function ensureAnonAuth() {
+    if (!FB.ok || !FB.auth) return;
+    if (FB.auth.currentUser) return;
+    await FB.auth.signInAnonymously();
+  }
+
+  // Wallet
+  async function getProvider() {
+    if (!window.ethereum) throw new Error("지갑 확장프로그램이 없습니다.");
+    return new ethers.BrowserProvider(window.ethereum);
+  }
+
+  async function getMe() {
+    const p = await getProvider();
+    await p.send("eth_requestAccounts", []);
+    const signer = await p.getSigner();
+    return await signer.getAddress();
+  }
+
+  // UI modal open/close
+  function openModal() {
+    const back = $("modalBack");
+    if (back) back.style.display = "flex";
+  }
+
+  function closeModal() {
+    const back = $("modalBack");
+    if (back) back.style.display = "none";
+  }
+
+  // 샘플 서비스 목록 (기존에 svcBody 채우는 로직이 있다면 그걸 유지하고 이 부분만 연결하면 됨)
+  // 여기서는 최소 동작만: 버튼 클릭 시 모달 열고 값 세팅
+  function renderServices() {
+    const body = $("svcBody");
+    if (!body) return;
+
+    const services = (APP && APP.ads && Array.isArray(APP.ads.services)) ? APP.ads.services : [
+      { id: 1, name: "기본 광고", includes: "리포트 제공", required: "참고링크/목적", price: "10" }
+    ];
+
+    body.innerHTML = "";
+    services.forEach((s) => {
+      const tr = document.createElement("tr");
+
+      tr.innerHTML = `
+        <td>${s.id}</td>
+        <td>${escapeHtml(s.name || "-")}</td>
+        <td class="muted">${escapeHtml(s.includes || "-")}</td>
+        <td class="muted">${escapeHtml(s.required || "-")}</td>
+        <td class="right price">${escapeHtml(String(s.price || "-"))}</td>
+        <td class="right"><button class="btn ghost" data-svc="${s.id}">주문</button></td>
+      `;
+
+      body.appendChild(tr);
+    });
+
+    body.querySelectorAll("button[data-svc]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const sid = Number(btn.getAttribute("data-svc"));
+        const svc = services.find(x => Number(x.id) === sid) || services[0];
+
+        $("mTitle").textContent = "주문 요청";
+        $("mDesc").textContent = (svc && svc.name) ? svc.name : "-";
+        $("btnSubmit").dataset.serviceId = String(sid);
+
+        setStatus("");
+        openModal();
+      });
+    });
+  }
+
+  function escapeHtml(s) {
+    return String(s ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  async function saveOrderToFirestore(order) {
+    await initFirebase();
+    await ensureAnonAuth();
+
+    const col = getOrdersCollection();
+    const ref = FB.db.collection(col).doc(); // 자동 ID
+    await ref.set({
+      ...order,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      status: "created"
+    });
+
+    return ref.id;
+  }
+
+  async function onSubmit() {
+    setStatus("");
+    try {
+      const serviceId = Number(($("btnSubmit").dataset.serviceId || "0"));
+      if (!serviceId) throw new Error("서비스 ID가 없습니다.");
+
+      const contact = String(($("mContact").value || "")).trim();
+      const required = String(($("mRequired").value || "")).trim();
+      const link = String(($("mLink").value || "")).trim();
+      const memo = String(($("mMemo").value || "")).trim();
+
+      if (!contact) throw new Error("연락처를 입력하세요.");
+      if (!required) throw new Error("광고목적을 입력하세요.");
+
+      setStatus("지갑 확인 중...");
+      const me = await getMe();
+
+      setStatus("주문 저장 중...");
+      const docId = await saveOrderToFirestore({
+        serviceId,
+        serviceName: ($("mDesc") && $("mDesc").textContent) ? $("mDesc").textContent : "서비스",
+        contact,
+        required,
+        link,
+        memo,
+        wallet: me
+      });
+
+      setStatus("주문 저장 완료: " + docId + " / 결제는 다음 단계로 진행");
+      // 여기서 결제 트랜잭션 로직이 있다면 이어붙이면 됨
+
+    } catch (e) {
+      setStatus(e && e.message ? e.message : String(e));
+    }
+  }
+
+  function bind() {
+    const closeBtn = $("btnClose");
+    if (closeBtn) closeBtn.addEventListener("click", closeModal);
+
+    const submitBtn = $("btnSubmit");
+    if (submitBtn) submitBtn.addEventListener("click", onSubmit);
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    renderServices();
+    bind();
   });
-
-  $("btnSubmit").addEventListener("click", submitOrder);
-  $("btnRefreshPrice").addEventListener("click", refreshTokenInfo);
-}
-
-document.addEventListener("DOMContentLoaded", async () => {
-  renderTable();
-  bind();
-  await refreshTokenInfo();
-  await ensureAuth();
-});
+})();

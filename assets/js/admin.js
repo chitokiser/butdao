@@ -1,11 +1,12 @@
-/* /assets/js/admin.js */
+// /assets/js/admin.js
 /* ethers v5 (UMD) + firebase compat (UMD) */
 
 (function () {
   const $ = (id) => document.getElementById(id);
 
   // 하드코딩 금지: config.js의 단일 설정 소스 사용
-  const getAddr = () => (window.APP && APP.contracts && APP.contracts.a2e) ? APP.contracts.a2e : null;
+  const getAddr = () =>
+    window.APP && APP.contracts && APP.contracts.a2e ? APP.contracts.a2e : null;
 
   // 컨트랙트(a2e.sol)와 일치하는 최소 ABI (pendingCount / pendingAt / adprice)
   const A2E_ABI = [
@@ -18,7 +19,7 @@
     "function pendingAt(uint256 index) view returns (uint256 id, uint256 missionId, address owner, uint64 reqAt, bytes32 proof)",
 
     "function approveClaim(uint256 id, uint256 missionId) external",
-    "function rejectClaim(uint256 id, uint256 missionId) external"
+    "function rejectClaim(uint256 id, uint256 missionId) external",
   ];
 
   function setMsg(id, msg) {
@@ -59,6 +60,10 @@
     return a;
   }
 
+  function normHash(h) {
+    return String(h || "").trim().toLowerCase();
+  }
+
   async function getProvider() {
     if (!window.ethereum) throw new Error("지갑 확장프로그램이 없습니다.");
     return new ethers.providers.Web3Provider(window.ethereum, "any");
@@ -74,7 +79,8 @@
 
   function getContractWith(signerOrProvider) {
     const addr = getAddr();
-    if (!addr) throw new Error("APP.contracts.a2e 가 없습니다. config.js 로드 순서를 확인하세요.");
+    if (!addr)
+      throw new Error("APP.contracts.a2e 가 없습니다. config.js 로드 순서를 확인하세요.");
     return new ethers.Contract(addr, A2E_ABI, signerOrProvider);
   }
 
@@ -91,9 +97,13 @@
 
   async function loadCurPrice(readContract) {
     try {
-      const mid = Number(($("missionId") && $("missionId").value) ? $("missionId").value : "1");
+      const mid = Number(
+        $("missionId") && $("missionId").value ? $("missionId").value : "1"
+      );
       const p = await readContract.adprice(mid);
-      if ($("curPrice")) $("curPrice").textContent = "현재 단가: " + ethers.utils.formatUnits(p, 18) + " HEX";
+      if ($("curPrice"))
+        $("curPrice").textContent =
+          "현재 단가: " + ethers.utils.formatUnits(p, 18) + " HEX";
     } catch {
       if ($("curPrice")) $("curPrice").textContent = "현재 단가: -";
     }
@@ -111,8 +121,12 @@
         return;
       }
 
-      const missionId = Number(($("missionId") && $("missionId").value) ? $("missionId").value : "0");
-      const priceStr = String(($("missionPrice") && $("missionPrice").value) ? $("missionPrice").value : "").trim();
+      const missionId = Number(
+        $("missionId") && $("missionId").value ? $("missionId").value : "0"
+      );
+      const priceStr = String(
+        $("missionPrice") && $("missionPrice").value ? $("missionPrice").value : ""
+      ).trim();
 
       if (!missionId || missionId <= 0) throw new Error("missionId를 입력하세요.");
       if (!priceStr) throw new Error("price를 입력하세요.");
@@ -179,34 +193,68 @@
   }
 
   function getProofCollection() {
-    return (APP.ads && APP.ads.proofCollection) ? APP.ads.proofCollection : "proof_urls";
+    return APP.ads && APP.ads.proofCollection ? APP.ads.proofCollection : "proof_urls";
   }
 
   function getOrdersCollection() {
-    return (APP.ads && APP.ads.ordersCollection) ? APP.ads.ordersCollection : "ad_orders";
+    return APP.ads && APP.ads.ordersCollection ? APP.ads.ordersCollection : "ad_orders";
   }
 
   function getMissionGuideCollection() {
-    return (APP.ads && APP.ads.missionGuideCollection) ? APP.ads.missionGuideCollection : "mission_guides";
+    return APP.ads && APP.ads.missionGuideCollection
+      ? APP.ads.missionGuideCollection
+      : "mission_guides";
   }
 
   // proofHash -> url: Firestore에서 조회
+  // 핵심 수정:
+  // 1) docId(=proofHash lower)로 먼저 조회
+  // 2) 없으면 where("proofHash"=="...")로 보조 조회
   async function fetchProofUrlFromFirestore(proofHash) {
     try {
       if (!FB.ok || !FB.db) return null;
       const col = getProofCollection();
+      const key = normHash(proofHash);
+      if (!key) return null;
 
-      const snap = await FB.db.collection(col).where("proofHash", "==", proofHash).limit(1).get();
-      if (snap.empty) return null;
+      // 1) 문서ID 직접 조회(가장 확실)
+      const d1 = await FB.db.collection(col).doc(key).get();
+      if (d1.exists) {
+        const v = d1.data() || {};
+        if (v.url) return String(v.url);
+      }
 
-      const d = snap.docs[0].data() || {};
-      return d.url ? String(d.url) : null;
+      // 2) 보조: proofHash 필드로 조회(혹시 docId와 다르게 저장된 경우)
+      const snap = await FB.db
+        .collection(col)
+        .where("proofHash", "==", key)
+        .limit(1)
+        .get();
+
+      if (!snap.empty) {
+        const d = snap.docs[0].data() || {};
+        return d.url ? String(d.url) : null;
+      }
+
+      // 3) 보조2: 원본 문자열 그대로도 한번(대소문자 섞여 저장된 경우)
+      const snap2 = await FB.db
+        .collection(col)
+        .where("proofHash", "==", String(proofHash))
+        .limit(1)
+        .get();
+
+      if (!snap2.empty) {
+        const d = snap2.docs[0].data() || {};
+        return d.url ? String(d.url) : null;
+      }
+
+      return null;
     } catch {
       return null;
     }
   }
 
-  // - 로컬에서는 functions 호출을 안 해서 404 제거
+  // 로컬에서는 functions 호출을 안 해서 404 제거
   async function fetchProofUrl(proofHash) {
     const url1 = await fetchProofUrlFromFirestore(proofHash);
     if (url1) return url1;
@@ -215,7 +263,9 @@
     if (hn === "127.0.0.1" || hn === "localhost") return null;
 
     try {
-      const r = await fetch("/.netlify/functions/proof_get?proofHash=" + encodeURIComponent(proofHash));
+      const r = await fetch(
+        "/.netlify/functions/proof_get?proofHash=" + encodeURIComponent(proofHash)
+      );
       if (!r.ok) return null;
       const j = await r.json();
       return j && j.url ? String(j.url) : null;
@@ -225,7 +275,7 @@
   }
 
   // ─────────────────────────────────────────────
-  // 신규: mission guide (광고주 요구) 저장/불러오기
+  // mission guide 저장/불러오기
   // ─────────────────────────────────────────────
 
   async function loadMissionGuide(missionId) {
@@ -244,15 +294,19 @@
   async function onGuideLoad() {
     setMsg("msgGuide", "");
     try {
-      const missionId = Number(($("missionId") && $("missionId").value) ? $("missionId").value : "0");
+      const missionId = Number(
+        $("missionId") && $("missionId").value ? $("missionId").value : "0"
+      );
       if (!missionId || missionId <= 0) throw new Error("missionId를 입력하세요.");
 
-      if (!FB.ok || !FB.db) throw new Error("Firebase 연결이 없습니다. admin.html에 firebase compat 스크립트를 추가하세요.");
+      if (!FB.ok || !FB.db)
+        throw new Error("Firebase 연결이 없습니다. admin.html에 firebase compat 스크립트를 추가하세요.");
 
       const guide = await loadMissionGuide(missionId);
       if ($("missionGuide")) $("missionGuide").value = guide != null ? guide : "";
 
-      if ($("guideStatus")) $("guideStatus").textContent = guide == null ? "저장된 가이드 없음" : "가이드 로드됨";
+      if ($("guideStatus"))
+        $("guideStatus").textContent = guide == null ? "저장된 가이드 없음" : "가이드 로드됨";
     } catch (e) {
       setMsg("msgGuide", e && e.message ? e.message : String(e));
       if ($("guideStatus")) $("guideStatus").textContent = "로드 실패";
@@ -271,23 +325,30 @@
         return;
       }
 
-      const missionId = Number(($("missionId") && $("missionId").value) ? $("missionId").value : "0");
+      const missionId = Number(
+        $("missionId") && $("missionId").value ? $("missionId").value : "0"
+      );
       if (!missionId || missionId <= 0) throw new Error("missionId를 입력하세요.");
 
-      const guide = String(($("missionGuide") && $("missionGuide").value) ? $("missionGuide").value : "").trim();
+      const guide = String(
+        $("missionGuide") && $("missionGuide").value ? $("missionGuide").value : ""
+      ).trim();
       if (!guide) throw new Error("가이드를 입력하세요.");
 
-      if (!FB.ok || !FB.db) throw new Error("Firebase 연결이 없습니다. admin.html에 firebase compat 스크립트를 추가하세요.");
+      if (!FB.ok || !FB.db)
+        throw new Error("Firebase 연결이 없습니다. admin.html에 firebase compat 스크립트를 추가하세요.");
 
+      // admin:true 포함(현재 rules가 이 방식이면 필요)
       await FB.db
         .collection(getMissionGuideCollection())
         .doc(String(missionId))
         .set(
           {
+            admin: true,
             missionId,
             guide,
             updatedBy: me,
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
           },
           { merge: true }
         );
@@ -350,7 +411,10 @@
       link.style.pointerEvents = "none";
       linkRow.appendChild(link);
 
-      fetchProofUrl(String(it.proof)).then((url) => {
+      // 핵심 수정: proofHash를 소문자로 정규화해서 조회(저장 docId와 일치)
+      const proofKey = normHash(it.proof);
+
+      fetchProofUrl(proofKey).then((url) => {
         if (url) {
           link.href = url;
           link.target = "_blank";
@@ -423,10 +487,13 @@
             missionId: Number(r.missionId || r[1]),
             owner: r.owner || r[2],
             reqAt: Number(r.reqAt || r[3] || 0),
-            proof: r.proof || r[4]
+            proof: r.proof || r[4],
           });
         } catch (e) {
-          setMsg("msgPending", "pendingAt(" + i + ") 조회 중 revert: " + (e && e.message ? e.message : String(e)));
+          setMsg(
+            "msgPending",
+            "pendingAt(" + i + ") 조회 중 revert: " + (e && e.message ? e.message : String(e))
+          );
           break;
         }
       }
@@ -525,7 +592,11 @@
 
       renderOrdersEmpty("불러오는 중...");
 
-      const snap = await FB.db.collection(getOrdersCollection()).orderBy("createdAt", "desc").limit(limit).get();
+      const snap = await FB.db
+        .collection(getOrdersCollection())
+        .orderBy("createdAt", "desc")
+        .limit(limit)
+        .get();
 
       if (snap.empty) {
         renderOrdersEmpty("주문 0개");
@@ -579,19 +650,17 @@
         line3.style.marginTop = "6px";
         line3.textContent = "결제자: " + (pay.payer ? fmtAddr(pay.payer) : "-");
 
-        const explorer = (window.APP && APP.chain && APP.chain.blockExplorer) ? APP.chain.blockExplorer : "https://opbnbscan.com";
-        const txUrl = pay.txUrl || (pay.txHash ? (explorer + "/tx/" + pay.txHash) : null);
+        const explorer =
+          window.APP && APP.chain && APP.chain.blockExplorer ? APP.chain.blockExplorer : "https://opbnbscan.com";
+        const txUrl = pay.txUrl || (pay.txHash ? explorer + "/tx/" + pay.txHash : null);
 
         const line4 = document.createElement("div");
         line4.className = "muted";
         line4.style.marginTop = "6px";
         line4.textContent = "영수증: ";
 
-        if (txUrl && pay.txHash) {
-          line4.appendChild(safeLink(txUrl, pay.txHash));
-        } else {
-          line4.appendChild(document.createTextNode("-"));
-        }
+        if (txUrl && pay.txHash) line4.appendChild(safeLink(txUrl, pay.txHash));
+        else line4.appendChild(document.createTextNode("-"));
 
         const line5 = document.createElement("div");
         line5.className = "muted";
@@ -641,7 +710,7 @@
 
     if ($("btnOrdersRefresh")) $("btnOrdersRefresh").addEventListener("click", refreshOrders);
 
-    // 신규: 가이드 버튼
+    // 가이드 버튼
     if ($("btnGuideLoad")) $("btnGuideLoad").addEventListener("click", onGuideLoad);
     if ($("btnGuideSave")) $("btnGuideSave").addEventListener("click", onGuideSave);
 
@@ -654,7 +723,9 @@
           await loadCurPrice(c);
         } catch {}
 
-        try { await onGuideLoad(); } catch {}
+        try {
+          await onGuideLoad();
+        } catch {}
       });
     }
   }
@@ -672,12 +743,16 @@
     } catch {}
 
     // 처음 진입 시 가이드도 한번 로드(미션ID 입력돼 있으면)
-    try { await onGuideLoad(); } catch {}
+    try {
+      await onGuideLoad();
+    } catch {}
 
     await refreshPending();
 
     if ($("ordersList")) {
-      try { await refreshOrders(); } catch {}
+      try {
+        await refreshOrders();
+      } catch {}
     }
   }
 

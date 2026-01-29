@@ -1,3 +1,4 @@
+// /firestore.rules
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -53,16 +54,34 @@ service cloud.firestore {
     match /treasures/{id}  { allow read: if true; allow write: if false; }
 
     /* ===== users / inventories ===== */
-    // users: 로그인된 유저만 (지갑 모드여도 Firestore 인증은 별개 → 익명 로그인 보장 필요)
     match /users/{addr} {
       allow read: if true;
       allow write: if request.auth != null;
     }
 
-    // inventories: 로그인 유저 또는 guest:* 문서 허용 (기존 정책 유지)
     match /inventories/{invId} {
       allow read: if true;
       allow write: if request.auth != null || invId.matches('^guest:.*$');
+    }
+
+    /* ===== A2E: mission guides (admin.html 저장 대상) ===== */
+    match /mission_guides/{docId} {
+      allow read: if true;
+      allow create, update, delete: if isDevAdminCreateOrMerge();
+    }
+
+    /* ===== A2E: proof urls (proofHash -> url) ===== */
+    match /proof_urls/{proofHash} {
+      allow read: if true;
+
+      // 누구나 최초 1회 생성 가능(덮어쓰기 방지)
+      allow create: if
+        !exists(/databases/$(database)/documents/proof_urls/$(proofHash)) &&
+        request.resource.data.proofHash == proofHash &&
+        request.resource.data.url is string &&
+        request.resource.data.url.size() >= 8;
+
+      allow update, delete: if false;
     }
 
     /* ===== fallback deny ===== */
