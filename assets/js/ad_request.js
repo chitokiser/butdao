@@ -81,12 +81,17 @@
     services.forEach((s) => {
       const tr = document.createElement("tr");
 
+      // support both `price` and legacy/alternate `pricePaw` from config
+      const displayPrice = (s.price !== undefined && s.price !== null)
+        ? s.price
+        : (s.pricePaw !== undefined && s.pricePaw !== null ? s.pricePaw : "-");
+
       tr.innerHTML = `
         <td>${s.id}</td>
         <td>${escapeHtml(s.name || "-")}</td>
-        <td class="muted">${escapeHtml(s.includes || "-")}</td>
+        <td class="muted">${escapeHtml(s.includes || s.base || "-")}</td>
         <td class="muted">${escapeHtml(s.required || "-")}</td>
-        <td class="right price">${escapeHtml(String(s.price || "-"))}</td>
+        <td class="right price">${escapeHtml(String(displayPrice))} HEX</td>
         <td class="right"><button class="btn ghost" data-svc="${s.id}">주문</button></td>
       `;
 
