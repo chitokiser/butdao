@@ -8,6 +8,11 @@
   font-family: "Inter", "Noto Sans KR", sans-serif;
 }
 
+:root{
+  --container-max: 1180px;
+  --pad-x: 16px;
+}
+
 body {
   background: #0b0f1a;
   color: #e5e7eb;
@@ -22,9 +27,9 @@ body {
 }
 
 .header-inner {
-  max-width: 1200px;
+  max-width: var(--container-max);
   margin: 0 auto;
-  padding: 14px 20px;
+  padding: 12px var(--pad-x);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -84,9 +89,9 @@ body {
    MAIN
 =============================== */
 main {
-  max-width: 1200px;
-  margin: 60px auto;
-  padding: 40px;
+  max-width: var(--container-max);
+  margin: 40px auto;
+  padding: 28px var(--pad-x);
   border: 1px solid #1f2937;
   border-radius: 12px;
   background: linear-gradient(180deg, #020617, #020617aa);
@@ -138,9 +143,9 @@ h2 {
 }
 
 .footer-inner {
-  max-width: 1200px;
+  max-width: var(--container-max);
   margin: 0 auto;
-  padding: 24px;
+  padding: 18px var(--pad-x);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -186,7 +191,7 @@ h2 {
   opacity: 0.85;
 }
 
-.page { max-width: 980px; margin: 0 auto; padding: 18px 14px; }
+.page { max-width: var(--container-max); margin: 0 auto; padding: 18px var(--pad-x); }
 .page-title { font-size: 18px; margin-bottom: 6px; }
 .page-desc { opacity: .8; margin-bottom: 14px; line-height: 1.4; }
 
@@ -278,35 +283,22 @@ h2 {
   cursor: pointer;
   opacity: 0.85;
 }
-/* ===== Buttons: force WHITE ===== */
+/* Buttons: prefer explicit classes. Removed aggressive global white override to keep dark theme intact. */
+
 .btn,
-button.btn,
-button,
-input[type="button"],
-input[type="submit"] {
-  background: #fff !important;
-  color: #000 !important;
-  border: 1px solid #fff !important;
-  border-radius: 12px !important;
-  padding: 10px 14px !important;
-  font-weight: 700 !important;
-  cursor: pointer !important;
+button.btn {
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 12px;
+  padding: 10px 14px;
+  background: transparent;
+  color: inherit;
+  font-weight: 700;
+  cursor: pointer;
 }
 
-.btn:hover,
-button:hover,
-input[type="button"]:hover,
-input[type="submit"]:hover {
-  filter: brightness(0.92) !important;
-}
+.btn:hover { opacity: 0.95; }
 
-.btn:disabled,
-button:disabled,
-input[type="button"]:disabled,
-input[type="submit"]:disabled {
-  opacity: 0.55 !important;
-  cursor: not-allowed !important;
-}
+.btn:disabled { opacity: .6; cursor: not-allowed; }
 
 /* ===== Mobile-safe message box (no overflow) ===== */
 .msgbox {

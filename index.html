@@ -190,11 +190,39 @@
       font-size: 13px;
     }
 
-    /* 데스크탑에서 2열 이상 */
+    /* 데스크탑에서 2열 이상: 오른쪽 고정폭을 두어 왼쪽 섹션이 오른쪽까지 꽉 채우도록 함 */
     @media (min-width: 980px){
       :root{ --pad-x: 16px; }
       .h1{ font-size: 28px; }
-      .grid{ grid-template-columns: 1.1fr .9fr; }
+      /* 오른쪽 사이드바를 고정폭으로 설정하면 왼쪽이 가용 영역을 전부 채움 */
+      .grid{ grid-template-columns: 1fr 360px; align-items: start; }
+      .grid > .card { width: 100%; }
+    }
+
+    /* 중간 화면: 좀 더 여유있는 레이아웃 */
+    @media (min-width: 760px) and (max-width: 979px) {
+      .page { padding-left: 18px; padding-right: 18px; }
+      .h1 { font-size: 24px; }
+    }
+
+    /* 모바일 최적화 */
+    @media (max-width: 759px) {
+      .hero { align-items: flex-start; gap: 8px; }
+      .h1 { font-size: 20px; }
+      .sub { font-size: 13px; }
+      .item { flex-direction: column; align-items: stretch; }
+      .item .right { flex-direction: row; justify-content: space-between; align-items: center; }
+      .item .right .pill { order: 2; }
+      .item .right .cta { order: 1; width: auto; }
+      .cta { padding: 12px; }
+      .pill { font-size: 12px; }
+    }
+
+    /* 아주 작은 화면에서 버튼과 패딩을 더 넓게 */
+    @media (max-width: 420px) {
+      .page { padding-left: 12px; padding-right: 12px; }
+      .btnx, .cta { padding: 12px 14px; font-size: 14px; }
+      .item .badge { min-width: 40px; height: 24px; font-size: 11px; }
     }
   </style>
 </head>
@@ -262,20 +290,7 @@
         </div>
       </div>
 
-      <div class="card">
-        <div class="row">
-          <div>
-            <div class="k">안내</div>
-            <div class="v" style="font-size:14px;">모바일 최적화 완료</div>
-          </div>
-          <span class="pill">지갑 연결 필요</span>
-        </div>
 
-        <div class="desc" style="margin-top:10px; opacity:.78;">
-          상단에서 지갑연결을 누르면 토큰 잔고 바가 다음 줄에 표시됩니다.<br/>
-          연결이 안 되면 opBNB 네트워크 / 지갑 설치 여부를 확인하세요.
-        </div>
-      </div>
     </section>
   </main>
 
