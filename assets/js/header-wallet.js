@@ -127,6 +127,12 @@
   }
 
   async function main() {
+    // Jump 세션이 있으면 jump-header.js가 헤더를 처리하므로 여기서는 동작하지 않음
+    try {
+      const s = JSON.parse(localStorage.getItem("jump_session") || "null");
+      if (s && s.walletAddress) return;
+    } catch {}
+
     const btn = await waitForEl("#wallet-btn");
     const addrEl = await waitForEl("#wallet-addr");
     const statusEl = await waitForEl("#wallet-status");

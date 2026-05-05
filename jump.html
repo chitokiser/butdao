@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>Jump · Google 로그인</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+  <link rel="icon" href="/assets/img/favicon.png">
+  <link rel="shortcut icon" href="/assets/img/favicon.png">
+  <link rel="stylesheet" href="/assets/css/style.css" />
+
+  <!-- ethers v6 (opBNB 컨트랙트 조회용) -->
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.14.0/dist/ethers.umd.min.js"></script>
+
+  <!-- Firebase Compat v10 -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+  <style>
+    :root {
+      --accent: #4f7df0;
+      --accent-hover: #3b6de0;
+      --card-bg: rgba(255,255,255,.04);
+      --card-line: rgba(255,255,255,.09);
+      --text-dim: rgba(229,231,235,.65);
+    }
+
+    body { min-height: 100dvh; display: flex; flex-direction: column; }
+
+    /* ── 상단 브랜드 바 ── */
+    .brand-bar {
+      background: #020617;
+      border-bottom: 1px solid #1e2436;
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .brand-bar img { height: 32px; }
+    .brand-bar .name { font-weight: 800; font-size: 15px; }
+    .brand-bar .partner-tag {
+      margin-left: auto;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .5px;
+      color: var(--accent);
+      background: rgba(79,125,240,.12);
+      border: 1px solid rgba(79,125,240,.25);
+      padding: 3px 9px;
+      border-radius: 999px;
+    }
+
+    /* ── 메인 래퍼 ── */
+    .jump-wrap {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 16px;
+    }
+
+    /* ── 카드 ── */
+    .jump-card {
+      width: 100%;
+      max-width: 420px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-line);
+      border-radius: 24px;
+      padding: 36px 28px;
+    }
+
+    /* ── 섹션 제어 ── */
+    .jump-section { display: none; flex-direction: column; align-items: center; gap: 20px; }
+    .jump-section.active { display: flex; }
+
+    /* ── 로고 영역 ── */
+    .jump-logo {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      text-align: center;
+    }
+    .jump-logo-icon {
+      width: 64px; height: 64px;
+      border-radius: 18px;
+      background: linear-gradient(135deg, #4f7df0, #7c3aed);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 28px;
+    }
+    .jump-logo h1 { font-size: 22px; font-weight: 900; margin: 0; }
+    .jump-logo p { font-size: 13px; color: var(--text-dim); margin: 0; }
+
+    /* ── Google 버튼 ── */
+    .btn-google {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      background: #fff;
+      color: #1f1f1f;
+      border: none;
+      border-radius: 14px;
+      padding: 14px 20px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .btn-google:hover { background: #f0f0f0; }
+    .btn-google svg { flex-shrink: 0; }
+
+    /* ── 상태 텍스트 ── */
+    .jump-status {
+      font-size: 13px;
+      color: var(--text-dim);
+      text-align: center;
+      min-height: 18px;
+    }
+    .jump-status.error { color: #f87171; }
+
+    /* ── 로딩 스피너 ── */
+    .spinner {
+      width: 40px; height: 40px;
+      border: 3px solid rgba(255,255,255,.1);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── 대시보드 ── */
+    .jump-dashboard { width: 100%; }
+
+    .user-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 16px;
+      background: rgba(255,255,255,.03);
+      border: 1px solid var(--card-line);
+      border-radius: 16px;
+    }
+    .user-avatar {
+      width: 48px; height: 48px;
+      border-radius: 50%;
+      object-fit: cover;
+      display: none;
+    }
+    .user-avatar-placeholder {
+      width: 48px; height: 48px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #4f7df0, #7c3aed);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; flex-shrink: 0;
+    }
+    .user-info { flex: 1; min-width: 0; }
+    .user-name { font-weight: 800; font-size: 15px; }
+    .user-email { font-size: 12px; color: var(--text-dim); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* ── 지갑 카드 ── */
+    .wallet-card {
+      background: linear-gradient(135deg, rgba(79,125,240,.12), rgba(124,58,237,.12));
+      border: 1px solid rgba(79,125,240,.25);
+      border-radius: 18px;
+      padding: 18px;
+    }
+    .wallet-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .6px;
+      color: var(--accent);
+      text-transform: uppercase;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .wallet-address-full {
+      font-size: 11px;
+      font-family: "Courier New", monospace;
+      color: var(--text-dim);
+      word-break: break-all;
+      line-height: 1.5;
+      margin-bottom: 12px;
+    }
+    .wallet-short {
+      font-size: 18px;
+      font-weight: 900;
+      letter-spacing: .5px;
+    }
+
+    /* ── 체인 배지 ── */
+    .chain-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #facc15;
+      background: rgba(250,204,21,.08);
+      border: 1px solid rgba(250,204,21,.2);
+      padding: 4px 10px;
+      border-radius: 999px;
+    }
+
+    /* ── 액션 버튼 ── */
+    .btn-copy {
+      width: 100%;
+      background: rgba(79,125,240,.15);
+      border: 1px solid rgba(79,125,240,.3);
+      color: var(--accent);
+      padding: 11px;
+      border-radius: 12px;
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .btn-copy:hover { background: rgba(79,125,240,.25); }
+
+    .btn-logout {
+      width: 100%;
+      background: transparent;
+      border: 1px solid rgba(255,255,255,.1);
+      color: var(--text-dim);
+      padding: 11px;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      transition: border-color .15s;
+    }
+    .btn-logout:hover { border-color: rgba(255,255,255,.25); color: #e5e7eb; }
+
+    /* ── 안내 텍스트 ── */
+    .info-note {
+      font-size: 12px;
+      color: var(--text-dim);
+      text-align: center;
+      line-height: 1.5;
+    }
+
+    /* ── 구분선 ── */
+    .divider { width: 100%; height: 1px; background: var(--card-line); }
+
+    /* ── 회원 상태 카드 ── */
+    .member-card {
+      border-radius: 18px;
+      padding: 18px;
+      border: 1px solid;
+    }
+    .member-card.is-member {
+      background: linear-gradient(135deg, rgba(16,185,129,.10), rgba(5,150,105,.08));
+      border-color: rgba(16,185,129,.28);
+    }
+    .member-card.not-member {
+      background: rgba(255,255,255,.02);
+      border-color: rgba(255,255,255,.08);
+    }
+    .member-card.checking {
+      background: rgba(255,255,255,.02);
+      border-color: rgba(255,255,255,.08);
+    }
+    .member-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .6px;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .member-card.is-member .member-label { color: #10b981; }
+    .member-card.not-member .member-label { color: #10b981; }
+    .member-card.checking .member-label { color: var(--text-dim); }
+
+    .member-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .member-stat {
+      background: rgba(255,255,255,.04);
+      border-radius: 12px;
+      padding: 10px 12px;
+    }
+    .member-stat .sk { font-size: 11px; color: var(--text-dim); margin-bottom: 3px; }
+    .member-stat .sv { font-size: 15px; font-weight: 900; }
+
+    .level-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      font-weight: 800;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(250,204,21,.12);
+      border: 1px solid rgba(250,204,21,.25);
+      color: #facc15;
+    }
+
+    .expired-tag {
+      font-size: 11px;
+      color: #f87171;
+      font-weight: 700;
+      margin-left: 4px;
+    }
+
+    .not-member-msg {
+      font-size: 13px;
+      color: var(--text-dim);
+      text-align: center;
+      line-height: 1.55;
+    }
+
+    @media (max-width: 440px) {
+      .jump-card { padding: 28px 18px; border-radius: 20px; }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- 브랜드 바 -->
+  <div class="brand-bar">
+    <img src="/assets/img/but.png" alt="BUT" />
+    <span class="name">BUT DAO</span>
+    <span class="partner-tag">JUMP</span>
+  </div>
+
+  <div class="jump-wrap">
+    <div class="jump-card">
+
+      <!-- ① 로그인 전 -->
+      <div id="section-login" class="jump-section active">
+        <div class="jump-logo">
+          <div class="jump-logo-icon">🚀</div>
+          <h1>Jump 파트너</h1>
+          <p>Google 계정으로 로그인하면<br/>수탁지갑이 자동으로 생성됩니다.</p>
+        </div>
+
+        <button class="btn-google" id="jump-google-btn" type="button">
+          <!-- Google G 아이콘 -->
+          <svg width="20" height="20" viewBox="0 0 48 48">
+            <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+            <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+            <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+            <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.95 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+          </svg>
+          Google로 로그인
+        </button>
+
+        <span class="jump-status" id="jump-status"></span>
+      </div>
+
+      <!-- ② 로딩 중 -->
+      <div id="section-loading" class="jump-section" style="padding: 20px 0;">
+        <div class="spinner"></div>
+        <span class="jump-status" id="jump-loading-msg">지갑을 준비하는 중...</span>
+      </div>
+
+      <!-- ③ 로그인 후 대시보드 -->
+      <div id="section-dashboard" class="jump-section">
+        <div class="jump-dashboard" style="display:flex; flex-direction:column; gap:16px; width:100%;">
+
+          <!-- 사용자 정보 -->
+          <div class="user-row">
+            <img id="jump-avatar" class="user-avatar" src="" alt="avatar" />
+            <div class="user-avatar-placeholder" id="jump-avatar-placeholder">👤</div>
+            <div class="user-info">
+              <div class="user-name" id="jump-user-name">-</div>
+              <div class="user-email" id="jump-user-email">-</div>
+            </div>
+          </div>
+
+          <!-- 수탁지갑 -->
+          <div class="wallet-card">
+            <div class="wallet-label">
+              🔐 수탁지갑 (opBNB)
+            </div>
+            <div class="wallet-address-full" id="jump-wallet-address">-</div>
+            <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
+              <span class="wallet-short" id="jump-wallet-short">-</span>
+              <span class="chain-badge">⬡ opBNB Mainnet</span>
+            </div>
+            <button class="btn-copy" id="jump-copy-btn" type="button">주소 복사</button>
+          </div>
+
+          <!-- Jump 회원 상태 -->
+          <div class="member-card checking" id="jump-member-card">
+            <div class="member-label">🔍 Jump 회원 상태 확인 중...</div>
+          </div>
+
+          <div class="divider"></div>
+
+          <button class="btn-logout" id="jump-logout-btn" type="button">로그아웃</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="/assets/js/jump-auth.js"></script>
+</body>
+</html>

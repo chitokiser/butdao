@@ -12,6 +12,11 @@
     load("include-footer", "/footer.html"),
   ]);
 
+  // Jump 로그인 상태를 헤더에 반영
+  const jumpScript = document.createElement("script");
+  jumpScript.src = "/assets/js/jump-header.js";
+  document.body.appendChild(jumpScript);
+
   // inject a simple language selector into the header (if present)
   const header = document.getElementById("include-head");
   if (header) {

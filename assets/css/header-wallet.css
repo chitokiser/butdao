@@ -78,6 +78,16 @@
   color: var(--text);
   background: rgba(255,255,255,.06);
 }
+.header-nav a.nav-jump{
+  color: #a78bfa;
+  font-weight: 700;
+  border: 1px solid rgba(167,139,250,.25);
+  background: rgba(167,139,250,.08);
+}
+.header-nav a.nav-jump:hover{
+  background: rgba(167,139,250,.18);
+  color: #c4b5fd;
+}
 
 /* 지갑 박스: 내부는 2줄 구조(위=주소/버튼/상태, 아래=토큰바) */
 .wallet-area{

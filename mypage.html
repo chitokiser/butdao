@@ -105,6 +105,10 @@
     <div class="m" id="toastMsg"></div>
   </div>
 
+  <!-- Firebase (compat) - Jump 수탁지갑 idToken용 -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+
   <!-- 공통/페이지 스크립트 -->
   <script src="/assets/js/config.js"></script>
   <script src="/assets/js/include.js"></script>
@@ -112,6 +116,7 @@
   <!-- 프로젝트 기존 JS 유지 -->
   <script src="/assets/js/wallet.js"></script>
   <script src="/assets/js/mypage.js"></script>
+  <script src="/assets/js/jump-a2e.js"></script>
   <script>
   (function syncWallet(){
     if (window.WALLET && WALLET.address) {

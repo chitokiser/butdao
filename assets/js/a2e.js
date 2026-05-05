@@ -181,6 +181,72 @@
   // WALLET (v6)
   // ============================================
 
+  // ============================================
+  // 미션 활성화 상태 (Firestore)
+  // ============================================
+
+  const MISSION_STATUS_COL = "mission_status";
+  let MISSION_STATUS = {};  // { "missionId": true/false }
+  let IS_STAFF = 0;
+
+  async function loadAllMissionStatuses() {
+    if (!firebaseReady()) return;
+    await ensureFirebaseAnon();
+    try {
+      const db = firebase.firestore();
+      const snap = await db.collection(MISSION_STATUS_COL).get();
+      snap.forEach(doc => {
+        const d = doc.data();
+        MISSION_STATUS[doc.id] = d.active !== false;
+      });
+    } catch (e) {
+      console.warn("loadAllMissionStatuses:", e);
+    }
+  }
+
+  async function setMissionActive(missionId, active) {
+    if (!firebaseReady()) throw new Error("Firebase 미연결");
+    await ensureFirebaseAnon();
+    const db = firebase.firestore();
+    await db.collection(MISSION_STATUS_COL).doc(String(missionId)).set(
+      { active, updatedAt: firebase.firestore.FieldValue.serverTimestamp() },
+      { merge: true }
+    );
+    MISSION_STATUS[String(missionId)] = active;
+  }
+
+  function isMissionActive(missionId) {
+    const v = MISSION_STATUS[String(missionId)];
+    return v !== false; // 미설정(undefined)이면 활성으로 간주
+  }
+
+  function applyMissionStatusToUI() {
+    for (const ms of APP.missions) {
+      const active   = isMissionActive(ms.id);
+      const banner   = document.getElementById(`msOff_${ms.id}`);
+      const mstEl    = document.getElementById(`mst_${ms.id}`);
+      const btnClaim = document.getElementById(`btnClaim_${ms.id}`);
+      const adminRow = document.getElementById(`adminRow_${ms.id}`);
+      const btnToggle= document.getElementById(`btnToggle_${ms.id}`);
+
+      if (banner)   banner.style.display  = active ? "none" : "";
+      if (mstEl)    mstEl.innerHTML       = active
+        ? `<span class="badge ok" style="font-size:11px;">활성</span>`
+        : `<span class="badge bad" style="font-size:11px;">비활성</span>`;
+      if (btnClaim) {
+        btnClaim.disabled      = !active;
+        btnClaim.style.opacity = active ? "" : "0.38";
+        btnClaim.title         = active ? "" : "관리자에 의해 비활성화된 미션입니다.";
+      }
+      if (adminRow)  adminRow.style.display  = IS_STAFF >= 5 ? "" : "none";
+      if (btnToggle) btnToggle.textContent    = active ? "비활성화" : "활성화";
+    }
+  }
+
+  // ============================================
+  // WALLET (v6)
+  // ============================================
+
   window.WALLET = window.WALLET || {
     provider: null,
     signer: null,
@@ -273,12 +339,14 @@
 
     const lvlRaw = await a2eRead.staff(WALLET.address).catch(() => 0);
     const lvl = Number(lvlRaw || 0);
+    IS_STAFF = lvl;
     if (lvl >= 5) {
       staffBadge.style.display = "";
       staffBadge.textContent = `스태프(${lvl})`;
     } else {
       staffBadge.style.display = "none";
     }
+    applyMissionStatusToUI();
 
     if (idNum === 0) {
       meLevel.textContent = "미가입";
@@ -312,14 +380,19 @@
       card.className = "card mission";
 
       card.innerHTML = `
-        <div class="row">
-          <div class="meta">
+        <div class="row" style="align-items:center;">
+          <div class="meta" style="flex:1;min-width:0;">
             <span class="badge">#${ms.id}</span>
             <div class="title">${escapeHtml(ms.title || "미션")}</div>
           </div>
-          <div class="meta" id="st_${ms.id}">
-            <span class="badge">상태: -</span>
+          <div class="meta" style="gap:6px;flex-shrink:0;">
+            <div id="mst_${ms.id}"></div>
+            <div id="st_${ms.id}"><span class="badge">상태: -</span></div>
           </div>
+        </div>
+
+        <div id="msOff_${ms.id}" style="display:none;margin:8px 0;padding:8px 12px;border-radius:8px;background:rgba(248,113,113,.10);border:1px solid rgba(248,113,113,.30);color:#f87171;font-size:13px;font-weight:600;">
+          ⛔ 관리자가 이 미션을 비활성화했습니다. 청구가 불가합니다.
         </div>
 
         <div class="desc">${escapeHtml(ms.desc || "")}</div>
@@ -339,9 +412,13 @@
         <div class="sub">관리자 확인을 위해 작업한 url을 입력하세요</div>
         <textarea class="txt" id="proof_${ms.id}" placeholder="url을 붙여넣으세요"></textarea>
 
-        <div class="row">
+        <div class="row" style="flex-wrap:wrap;gap:8px;">
           <button class="btn" id="btnClaim_${ms.id}">청구하기</button>
           <button class="btn ghost" id="btnCancel_${ms.id}">청구취소</button>
+          <div style="flex:1;"></div>
+          <div id="adminRow_${ms.id}" style="display:none;">
+            <button class="btn ghost" id="btnToggle_${ms.id}" style="font-size:12px;padding:4px 12px;border-color:rgba(251,191,36,.5);color:#fbbf24;">활성화</button>
+          </div>
         </div>
       `;
       wrap.appendChild(card);
@@ -529,12 +606,34 @@
 
   async function bindMissionButtons() {
     for (const ms of APP.missions) {
-      const btnClaim = document.getElementById(`btnClaim_${ms.id}`);
+      const btnClaim  = document.getElementById(`btnClaim_${ms.id}`);
       const btnCancel = document.getElementById(`btnCancel_${ms.id}`);
+      const btnToggle = document.getElementById(`btnToggle_${ms.id}`);
+
+      // ── 관리자: 활성화/비활성화 토글 ──
+      if (btnToggle) {
+        btnToggle.addEventListener("click", async () => {
+          if (IS_STAFF < 5) return;
+          const nowActive = isMissionActive(ms.id);
+          const next = !nowActive;
+          const label = next ? "활성화" : "비활성화";
+          btnToggle.disabled = true;
+          try {
+            await setMissionActive(ms.id, next);
+            applyMissionStatusToUI();
+            toast(`미션 #${ms.id} ${label} 완료`, "ok");
+          } catch (e) {
+            toast(asUserMessage(e), "error", `${label} 실패`);
+          } finally {
+            btnToggle.disabled = false;
+          }
+        });
+      }
 
       if (btnClaim) {
         btnClaim.addEventListener("click", async () => {
           try {
+            if (!isMissionActive(ms.id)) throw new Error("관리자가 비활성화한 미션입니다.");
             if (!WALLET.signer) throw new Error("지갑을 연결해 주세요.");
             const a2e = getA2E(WALLET.signer);
 
@@ -624,6 +723,8 @@
     await loadMe();
     await refreshMissionStatuses();
     await applyGuidesToUI();
+    await loadAllMissionStatuses();
+    applyMissionStatusToUI();
   };
 
   // ============================================
@@ -632,6 +733,8 @@
 
   document.addEventListener("DOMContentLoaded", async () => {
     await renderMissions();
+    await loadAllMissionStatuses();
+    applyMissionStatusToUI();
     await applyGuidesToUI();
     await bindMissionButtons();
 
@@ -644,6 +747,7 @@
       await loadMe();
       await refreshMissionStatuses();
       await applyGuidesToUI();
+      applyMissionStatusToUI();
     }
 
     if (window.ethereum?.on) {

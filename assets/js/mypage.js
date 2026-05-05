@@ -242,9 +242,14 @@
     const a2e = getA2E(WALLET.provider);
 
     let nextId = 0;
+    let mentoFeeRate = 0n;
     try {
-      const bn = await a2e.nextId();
+      const [bn, fee] = await Promise.all([
+        a2e.nextId(),
+        a2e.mentoFee().catch(() => 0n),
+      ]);
       nextId = toNum(bn, 0);
+      mentoFeeRate = BigInt(fee.toString());
     } catch (e) {
       grid.innerHTML = `<div class="card"><div class="sub">멘티 목록 조회 실패 (nextId 조회 불가)</div></div>`;
       return;
@@ -259,10 +264,15 @@
         const owner = String(info.owner || "").toLowerCase();
         const mento = String(info.mento || "").toLowerCase();
         const level = toNum(info.level, 0);
-        const exp = toNum(info.exp, 0);
 
         if (owner !== "0x0000000000000000000000000000000000000000" && mento === my && level > 0) {
-          mentees.push({ id, owner: info.owner, level, exp });
+          mentees.push({
+            id,
+            owner: info.owner,
+            level,
+            exp: toNum(info.exp, 0),
+            totalpay: info.totalpay,
+          });
         }
       } catch (e) {}
     }
@@ -273,19 +283,82 @@
     }
 
     for (const m of mentees) {
+      const totalMentorEst = mentoFeeRate > 0n
+        ? (BigInt(m.totalpay.toString()) * mentoFeeRate) / 100n
+        : 0n;
+
       const card = document.createElement("div");
       card.className = "card";
       card.innerHTML = `
-        <div class="row" style="justify-content:space-between; gap:10px; flex-wrap:wrap;">
-          <div class="title">ID ${m.id}</div>
-          <div class="sub">${m.owner}</div>
+        <div class="row" style="justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+          <div class="title" style="margin:0;">ID ${m.id}</div>
+          <button class="btn ghost" style="font-size:12px;padding:4px 12px;" data-detail="${m.id}">상세보기</button>
         </div>
-        <div class="kv">
+        <div class="sub" style="margin-top:4px;word-break:break-all;">${m.owner}</div>
+        <div class="kv" style="margin-top:8px;">
           <div class="k">레벨</div><div class="v">${m.level}</div>
           <div class="k">Experience</div><div class="v">${fmtNum(m.exp)}</div>
+          <div class="k">멘티 누적수령</div><div class="v">${fmtUnits(m.totalpay)} HEX</div>
+          <div class="k">내 수익 추정 (${fmtNum(toNum(mentoFeeRate, 0))}%)</div>
+          <div class="v" style="color:#46e6a0;font-weight:700;">${fmtUnits(totalMentorEst)} HEX</div>
         </div>
+        <div class="mentee-detail" id="md_${m.id}" style="display:none;margin-top:12px;"></div>
       `;
       grid.appendChild(card);
+
+      card.querySelector(`[data-detail="${m.id}"]`).addEventListener("click", async function () {
+        const det = document.getElementById(`md_${m.id}`);
+        if (det.style.display !== "none") {
+          det.style.display = "none";
+          this.textContent = "상세보기";
+          return;
+        }
+        this.textContent = "닫기";
+        det.style.display = "";
+        det.innerHTML = `<div class="sub">미션 수익 내역 조회 중...</div>`;
+
+        try {
+          const approved = [];
+          for (const ms of APP.missions) {
+            let ci;
+            try { ci = await a2e.claimInfo(m.id, ms.id); } catch { continue; }
+            if (toNum(ci.status, 0) !== 3) continue;
+            const reward = BigInt(ci.price_.toString());
+            const cut = mentoFeeRate > 0n ? (reward * mentoFeeRate) / 100n : 0n;
+            approved.push({ missionId: ms.id, reward, cut, lastAt: toNum(ci.lastAt, 0) });
+          }
+
+          if (approved.length === 0) {
+            det.innerHTML = `<div class="sub" style="padding:8px 0;">이 멘티의 승인된 미션이 없습니다.</div>`;
+            return;
+          }
+
+          const totalCut = approved.reduce((acc, c) => acc + c.cut, 0n);
+          const rows = approved.map(c => `
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;padding:8px 0;border-top:1px solid rgba(255,255,255,.07);">
+              <div class="sub">미션 #${c.missionId}</div>
+              <div style="text-align:right;"><span class="badge ok">승인완료</span></div>
+              <div class="sub">멘티 보상</div>
+              <div style="text-align:right;font-weight:600;">${fmtUnits(c.reward)} HEX</div>
+              <div class="sub">내 수익 (${fmtNum(toNum(mentoFeeRate, 0))}%)</div>
+              <div style="text-align:right;color:#46e6a0;font-weight:700;">${fmtUnits(c.cut)} HEX</div>
+              <div class="sub">승인일시</div>
+              <div style="text-align:right;font-size:12px;opacity:.8;">${c.lastAt ? fmtTime(c.lastAt) : "-"}</div>
+            </div>
+          `).join("");
+
+          det.innerHTML = `
+            <div style="font-weight:700;font-size:13px;margin-bottom:4px;">수익 발생 내역</div>
+            ${rows}
+            <div style="margin-top:10px;padding:10px 12px;border-radius:8px;background:rgba(70,230,160,.08);border:1px solid rgba(70,230,160,.22);display:flex;justify-content:space-between;align-items:center;">
+              <div class="sub">미션 수익 합계</div>
+              <div style="font-size:17px;font-weight:700;color:#46e6a0;">${fmtUnits(totalCut)} HEX</div>
+            </div>
+          `;
+        } catch (e) {
+          det.innerHTML = `<div class="sub" style="color:#f87171;">조회 실패: ${e.message}</div>`;
+        }
+      });
     }
   }
 
