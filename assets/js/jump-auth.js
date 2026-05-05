@@ -271,9 +271,10 @@
         memberLevel:   membership ? membership.level : null
       }));
 
-      // 5단계: 최초 로그인이면 index.html로, 재방문이면 대시보드 표시
-      if (_justLoggedIn) {
-        _justLoggedIn = false;
+      // 5단계: ?dashboard=1 파라미터가 없으면 항상 index.html로 이동
+      _justLoggedIn = false;
+      const isDashboardMode = new URLSearchParams(location.search).has("dashboard");
+      if (!isDashboardMode) {
         window.location.href = "/index.html";
         return;
       }

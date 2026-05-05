@@ -96,7 +96,7 @@
       btn.style.borderColor = "rgba(167,139,250,.45)";
       btn.style.color = "#a78bfa";
       btn.style.background = "rgba(167,139,250,.10)";
-      btn.onclick = (e) => { e.preventDefault(); location.href = "/jump.html"; };
+      btn.onclick = (e) => { e.preventDefault(); location.href = "/jump.html?dashboard=1"; };
     }
 
     if (stripEl) {
