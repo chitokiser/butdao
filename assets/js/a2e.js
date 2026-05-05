@@ -88,7 +88,10 @@
   async function ensureFirebaseAnon() {
     if (!firebaseReady()) return false;
     try {
-      if (!firebase.apps || firebase.apps.length === 0) {
+      // jump-a2e.js가 "jump" 명명 앱을 먼저 초기화할 수 있으므로
+      // apps.length가 0이 아니더라도 DEFAULT 앱이 없으면 초기화
+      const hasDefault = firebase.apps && firebase.apps.some(a => a.name === "[DEFAULT]");
+      if (!hasDefault) {
         firebase.initializeApp(APP.firebase);
       }
       const auth = firebase.auth();
