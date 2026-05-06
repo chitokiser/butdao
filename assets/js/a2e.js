@@ -209,7 +209,8 @@
 
   async function setMissionActive(missionId, active) {
     if (!firebaseReady()) throw new Error("Firebase 미연결");
-    await ensureFirebaseAnon();
+    const ok = await ensureFirebaseAnon();
+    if (!ok) throw new Error("Firebase 인증 실패 — 새로고침 후 다시 시도하세요.");
     const db = firebase.firestore();
     await db.collection(MISSION_STATUS_COL).doc(String(missionId)).set(
       { active, updatedAt: firebase.firestore.FieldValue.serverTimestamp() },
