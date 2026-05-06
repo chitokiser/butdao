@@ -10,7 +10,14 @@ const { createHmac } = require("crypto");
 const FIREBASE_WEB_API_KEY = "AIzaSyD6oGXWcQIAa46ZiO6E9fBWOXqiNCAL4-c";
 const PARTNER_API_KEY = "3fd9afc326ff3f687197f3fbc8f746133d513e5f3237a54a94cd87a3dd3b56cf";
 
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
 const JSON_HEADERS = {
+  ...CORS_HEADERS,
   "Content-Type": "application/json",
   "Cache-Control": "no-store",
 };
@@ -42,6 +49,9 @@ function deriveWalletAddress(uid, masterKey) {
 }
 
 exports.handler = async (event) => {
+  if (event.httpMethod === "OPTIONS") {
+    return { statusCode: 204, headers: CORS_HEADERS, body: "" };
+  }
   if (event.httpMethod !== "POST") {
     return { statusCode: 405, headers: JSON_HEADERS, body: JSON.stringify({ ok: false, msg: "Method Not Allowed" }) };
   }
