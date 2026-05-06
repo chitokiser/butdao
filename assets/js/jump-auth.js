@@ -23,10 +23,9 @@
 
   const JUMP_SESSION_KEY = "jump_session";
 
-  let jumpApp       = null;
-  let jumpAuth      = null;
-  let jumpDb        = null;
-  let _justLoggedIn = false;
+  let jumpApp  = null;
+  let jumpAuth = null;
+  let jumpDb   = null;
 
   const $ = (sel) => document.querySelector(sel);
 
@@ -52,51 +51,28 @@
     if (el) el.textContent = msg;
   }
 
-  // ── 로컬 테스트 폴백: ethers.js로 클라이언트에서 지갑 파생 ──
-  function localDeriveWallet(uid) {
-    const ethers = window.ethers;
-    if (!ethers) throw new Error("ethers.js가 로드되지 않았습니다.");
-    const privateKey = ethers.id("local-test:" + uid); // keccak256(uid) → 테스트용
-    return new ethers.Wallet(privateKey).address;
-  }
-
-  // ── 수탁지갑 조회 (Netlify Function → 실패 시 캐시된 주소 → 로컬 폴백) ──
-  async function fetchWallet(idToken, uid) {
+  // ── 수탁지갑 조회 (서버에 없으면 로그인 차단) ──
+  async function fetchWallet(idToken) {
+    let res;
     try {
-      const res = await fetch("/.netlify/functions/jump_wallet", {
+      res = await fetch("/.netlify/functions/jump_wallet", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ idToken, partnerApiKey: PARTNER_API_KEY })
       });
-
-      // 함수 서버가 없을 때(405, 404 등) → 캐시 확인 후 로컬 폴백
-      if (!res.ok) {
-        console.warn("Netlify 함수 미응답 → 캐시 확인 중...");
-        return _fallbackWallet(uid);
-      }
-
-      const data = await res.json();
-      if (!data.ok) throw new Error(data.msg || "지갑 생성 실패");
-      return data;
-    } catch (e) {
-      // 네트워크 오류도 캐시 확인 후 로컬 폴백으로
-      if (e.message && e.message.includes("지갑 생성")) throw e;
-      console.warn("Netlify 함수 오류 → 캐시 확인 중:", e.message);
-      return _fallbackWallet(uid);
+    } catch {
+      throw new Error("수탁지갑 서버에 연결할 수 없습니다. 잠시 후 다시 시도하세요.");
     }
-  }
 
-  // 캐시된 실제 주소가 있으면 재사용, 없으면 로컬 파생
-  function _fallbackWallet(uid) {
-    try {
-      const cached = JSON.parse(localStorage.getItem(JUMP_SESSION_KEY) || "null");
-      if (cached?.uid === uid && cached?.walletAddress && !cached?.isLocalTest) {
-        console.info("jump-auth: 캐시된 실제 주소 재사용 →", cached.walletAddress);
-        return { ok: true, walletAddress: cached.walletAddress, isLocalTest: false };
-      }
-    } catch {}
-    console.warn("jump-auth: 캐시 없음 → 로컬 테스트 모드로 전환");
-    return { ok: true, walletAddress: localDeriveWallet(uid), isLocalTest: true };
+    if (!res.ok) {
+      throw new Error(`수탁지갑 서버 오류 (${res.status}). 관리자에게 문의하세요.`);
+    }
+
+    const data = await res.json();
+    if (!data.ok || !data.walletAddress) {
+      throw new Error(data.msg || "수탁지갑이 배정되지 않았습니다. 관리자에게 문의하세요.");
+    }
+    return data;
   }
 
   // ── a2e 컨트랙트 회원 조회 ──
@@ -249,9 +225,9 @@
 
     try {
       // 1단계: 수탁지갑 주소 가져오기
-      setLoadingMsg("수탁지갑 준비 중...");
+      setLoadingMsg("수탁지갑 확인 중...");
       const idToken    = await user.getIdToken();
-      const walletData = await fetchWallet(idToken, user.uid);
+      const walletData = await fetchWallet(idToken);
 
       // 2단계: a2e 컨트랙트 회원 여부 확인
       setLoadingMsg("Jump 회원 상태 확인 중...");
@@ -260,11 +236,10 @@
       // 3단계: Firestore 저장
       await saveToFirestore(user, walletData.walletAddress, membership);
 
-      // 4단계: localStorage에 세션 저장 (isLocalTest: true면 주소가 임시 파생값임을 표시)
+      // 4단계: localStorage에 세션 저장
       localStorage.setItem(JUMP_SESSION_KEY, JSON.stringify({
         uid:           user.uid,
         walletAddress: walletData.walletAddress,
-        isLocalTest:   walletData.isLocalTest || false,
         displayName:   user.displayName || "",
         email:         user.email || "",
         photoURL:      user.photoURL || "",
@@ -272,7 +247,6 @@
       }));
 
       // 5단계: ?dashboard=1 파라미터가 없으면 항상 index.html로 이동
-      _justLoggedIn = false;
       const isDashboardMode = new URLSearchParams(location.search).has("dashboard");
       if (!isDashboardMode) {
         window.location.href = "/index.html";
@@ -297,10 +271,8 @@
     provider.addScope("profile");
     try {
       setStatus("로그인 중...");
-      _justLoggedIn = true;
       await jumpAuth.signInWithPopup(provider);
     } catch (e) {
-      _justLoggedIn = false;
       if (e.code !== "auth/popup-closed-by-user") {
         setStatus(e?.message || "로그인 실패", true);
       } else {
