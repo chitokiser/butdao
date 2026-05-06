@@ -111,11 +111,13 @@
     if (!membership) {
       card.className = "member-card not-member";
       card.innerHTML = `
-        <div class="member-label">✅ Jump 회원</div>
+        <div class="member-label">⚠️ Jump 미가입</div>
         <p class="not-member-msg">
-          수탁지갑이 준비되어 있습니다.<br/>
-          아직 a2e 미션에 참여하지 않아 레벨/보상 정보가 없습니다.
-        </p>`;
+          수탁지갑은 준비되었지만<br/>아직 Jump 회원이 아닙니다.
+        </p>
+        <a class="btn-join" href="https://jump22.netlify.app/register" target="_blank" rel="noopener">
+          🚀 Jump 회원 가입하기
+        </a>`;
       return;
     }
 
